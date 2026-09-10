@@ -1,0 +1,9 @@
+"use client";
+import { FormEvent, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import type { Comment } from "@/lib/types";
+
+export function Comments(){const [items,setItems]=useState<Comment[]>([]);const [name,setName]=useState("");const [role,setRole]=useState("");const [content,setContent]=useState("");const [message,setMessage]=useState("");
+  useEffect(()=>{if(!supabase)return;supabase.from("comments").select("id,author_name,author_role,content,created_at").eq("approved",true).order("created_at",{ascending:false}).then(({data})=>setItems((data??[]) as Comment[]))},[]);
+  async function submit(e:FormEvent){e.preventDefault();if(!supabase){setMessage("Conecte o Supabase para enviar comentários.");return}const {error}=await supabase.from("comments").insert({author_name:name,author_role:role,content});setMessage(error?"Não foi possível enviar.":"Comentário enviado para aprovação.");if(!error){setName("");setRole("");setContent("")}}
+  return <section className="comments"><div><span className="eyebrow">Experiências compartilhadas</span><h2>O que dizem os pesquisadores</h2><div className="comment-list">{items.length?items.map(c=><blockquote key={c.id}><p>“{c.content}”</p><footer><strong>{c.author_name}</strong>{c.author_role&&<span>{c.author_role}</span>}</footer></blockquote>):<p className="muted">Os primeiros comentários aprovados aparecerão aqui.</p>}</div></div><form onSubmit={submit} className="comment-form"><h3>Deixe seu comentário</h3><label>Nome<input value={name} onChange={e=>setName(e.target.value)} required/></label><label>Instituição ou função<input value={role} onChange={e=>setRole(e.target.value)}/></label><label>Comentário<textarea value={content} onChange={e=>setContent(e.target.value)} required maxLength={900}/></label><button className="btn primary">Enviar para aprovação</button>{message&&<p className="form-message">{message}</p>}</form></section>}
