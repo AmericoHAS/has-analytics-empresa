@@ -1,2 +1,45 @@
-"use client";import {useEffect,useState} from "react";import Link from "next/link";import {supabase} from "@/lib/supabase";import type{ClientDocument}from"@/lib/types";
-export default function ClientArea(){const[docs,setDocs]=useState<ClientDocument[]>([]);const[loading,setLoading]=useState(true);useEffect(()=>{(async()=>{if(!supabase)return setLoading(false);const{data:{user}}=await supabase.auth.getUser();if(!user){location.href="/login";return}const{data}=await supabase.from("client_documents").select("id,title,kind,status,file_url,created_at").eq("client_id",user.id).order("created_at",{ascending:false});setDocs((data??[])as ClientDocument[]);setLoading(false)})()},[]);return <main className="dashboard"><aside><strong>HAS Analytics</strong><Link href="/area-cliente">Visão geral</Link><Link href="/area-cliente">Documentos</Link><Link href="/area-cliente">Relatórios</Link><button onClick={()=>supabase?.auth.signOut().then(()=>location.href="/")}>Sair</button></aside><section><span className="eyebrow">Área do cliente</span><h1>Acompanhe seu projeto</h1><div className="summary"><article><b>Orçamentos</b><strong>{docs.filter(d=>d.kind==="orcamento").length}</strong></article><article><b>Contratos</b><strong>{docs.filter(d=>d.kind==="contrato").length}</strong></article><article><b>Relatórios</b><strong>{docs.filter(d=>d.kind==="relatorio").length}</strong></article></div><h2>Arquivos e documentos</h2>{loading?<p>Carregando...</p>:<div className="doc-list">{docs.map(d=><article key={d.id}><span className="tag">{d.kind}</span><div><strong>{d.title}</strong><small>{d.status}</small></div>{d.file_url&&<a href={d.file_url} target="_blank">Abrir</a>}</article>)}</div>}</section></main>}
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import ClientWorkspace from "@/components/workspace/ClientWorkspace";
+import SignOut from "@/components/workspace/SignOut";
+export default async function ClientArea() {
+  const db = await createClient();
+  const {
+    data: { user },
+  } = await db.auth.getUser();
+  if (!user) redirect("/login");
+  const { data } = await db
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+  return (
+    <main className="dashboard client-dashboard">
+      <aside>
+        <strong>
+          HAS<span>ANALYTICS</span>
+        </strong>
+        <small>SEU ESPAÇO DE PESQUISA</small>
+        <Link className="active" href="/area-cliente">
+          Meu acompanhamento
+        </Link>
+        <Link href="/">Site HAS Analytics</Link>
+        <SignOut />
+      </aside>
+      <section>
+        <header className="dashboard-hero">
+          <span className="eyebrow">Área privada do cliente</span>
+          <h1>Olá, {data?.full_name?.split(" ")[0] ?? "bem-vindo"}.</h1>
+          <p>
+            Sua pesquisa, acompanhada de perto.
+            <br />
+            Arquivos, resultados e próximos passos em um único lugar.
+          </p>
+          <span className="secure-badge">Acesso privado · HAS Analytics</span>
+        </header>
+        <ClientWorkspace clientId={user.id} />
+      </section>
+    </main>
+  );
+}

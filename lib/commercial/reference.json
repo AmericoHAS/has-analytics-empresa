@@ -1,0 +1,142 @@
+[
+  {
+    "group": "Complexidade",
+    "label": "Baixa",
+    "coefficient": 0.05
+  },
+  {
+    "group": "Complexidade",
+    "label": "Moderada",
+    "coefficient": 0.1
+  },
+  {
+    "group": "Complexidade",
+    "label": "Alta",
+    "coefficient": 0.2
+  },
+  {
+    "group": "Complexidade",
+    "label": "Muito alta",
+    "coefficient": 0.35
+  },
+  {
+    "group": "Banco",
+    "label": "Banco limpo e organizado",
+    "coefficient": 0.0
+  },
+  {
+    "group": "Banco",
+    "label": "Banco ajustável, com pequenos ajustes",
+    "coefficient": 0.05
+  },
+  {
+    "group": "Banco",
+    "label": "Banco com organização intermediária",
+    "coefficient": 0.1
+  },
+  {
+    "group": "Banco",
+    "label": "Banco grande ou com muitas variáveis",
+    "coefficient": 0.2
+  },
+  {
+    "group": "Banco",
+    "label": "Banco bagunçado ou com muitos problemas",
+    "coefficient": 0.35
+  },
+  {
+    "group": "Banco",
+    "label": "limpo",
+    "coefficient": 0.0
+  },
+  {
+    "group": "Banco",
+    "label": "ajustável",
+    "coefficient": 0.1
+  },
+  {
+    "group": "Banco",
+    "label": "médio",
+    "coefficient": 0.2
+  },
+  {
+    "group": "Banco",
+    "label": "grande",
+    "coefficient": 0.3
+  },
+  {
+    "group": "Banco",
+    "label": "bagunçado",
+    "coefficient": 0.5
+  },
+  {
+    "group": "Urgência",
+    "label": "Prazo normal",
+    "coefficient": 0.0
+  },
+  {
+    "group": "Urgência",
+    "label": "Prazo curto",
+    "coefficient": 0.1
+  },
+  {
+    "group": "Urgência",
+    "label": "Muito urgente",
+    "coefficient": 0.3
+  },
+  {
+    "group": "Responsabilidade",
+    "label": "Trabalho acadêmico ou atividade",
+    "coefficient": 0.05
+  },
+  {
+    "group": "Responsabilidade",
+    "label": "TCC",
+    "coefficient": 0.1
+  },
+  {
+    "group": "Responsabilidade",
+    "label": "Artigo científico",
+    "coefficient": 0.2
+  },
+  {
+    "group": "Responsabilidade",
+    "label": "Dissertação",
+    "coefficient": 0.3
+  },
+  {
+    "group": "Responsabilidade",
+    "label": "Tese",
+    "coefficient": 0.35
+  },
+  {
+    "group": "Modelo",
+    "label": "Apenas análise dos dados",
+    "coefficient": 0.0
+  },
+  {
+    "group": "Modelo",
+    "label": "Análise dos dados com tabelas e gráficos",
+    "coefficient": 0.1
+  },
+  {
+    "group": "Modelo",
+    "label": "Apoio na estruturação para artigo ou texto acadêmico",
+    "coefficient": 0.2
+  },
+  {
+    "group": "Modelo",
+    "label": "apenas dados",
+    "coefficient": 0.0
+  },
+  {
+    "group": "Modelo",
+    "label": "tabelas e gráficos",
+    "coefficient": 0.1
+  },
+  {
+    "group": "Modelo",
+    "label": "artigo ou texto acadêmico",
+    "coefficient": 0.2
+  }
+]
