@@ -11,10 +11,14 @@ const initialState: CreateClientState = {
   message: "",
 };
 
-export default function NewClientForm() {
+export default function NewClientForm({
+  initialValues,
+}: {
+  initialValues?: { fullName: string; email: string; phone: string };
+}) {
   const [state, formAction, pending] = useActionState(
     createClientAction,
-    initialState
+    initialState,
   );
 
   const formRef = useRef<HTMLFormElement>(null);
@@ -32,6 +36,7 @@ export default function NewClientForm() {
         <input
           id="fullName"
           name="fullName"
+          defaultValue={initialValues?.fullName}
           type="text"
           placeholder="Nome do cliente"
           required
@@ -43,6 +48,7 @@ export default function NewClientForm() {
         <input
           id="email"
           name="email"
+          defaultValue={initialValues?.email}
           type="email"
           placeholder="cliente@email.com"
           required
@@ -54,6 +60,7 @@ export default function NewClientForm() {
         <input
           id="phone"
           name="phone"
+          defaultValue={initialValues?.phone}
           type="tel"
           placeholder="(00) 00000-0000"
         />

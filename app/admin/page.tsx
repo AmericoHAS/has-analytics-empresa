@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import NewClientForm from "@/components/admin/NewClientForm";
+import BudgetRequests from "@/components/admin/BudgetRequests";
 import NewProjectForm from "@/components/admin/NewProjectForm";
 import ProjectList from "@/components/admin/ProjectList";
 
@@ -137,6 +138,7 @@ export default function Admin() {
   const tabs = [
     "visao",
     "clientes",
+    "solicitacoes",
     "documentos",
     "projetos",
     "comentarios",
@@ -147,6 +149,7 @@ export default function Admin() {
   const labels: Record<string, string> = {
     visao: "Visão geral",
     clientes: "Clientes",
+    solicitacoes: "Solicitações",
     documentos: "Documentos",
     projetos: "Portfólio",
     comentarios: "Comentários",
@@ -230,6 +233,7 @@ export default function Admin() {
         )}
 
         {tab === "configuracoes" && <CommercialSettings />}
+        {tab === "solicitacoes" && <BudgetRequests />}
         {tab === "clientes" && (
           <div className="workspace-card">
             <div className="workspace-header">
