@@ -1,5 +1,6 @@
 "use server";
 
+import { parseProjectMetadata } from "@/lib/project-metadata";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,14 +21,12 @@ function makeSlug(value: string) {
 
 export async function createProjectAction(
   _previousState: CreateProjectState,
-  formData: FormData
+  formData: FormData,
 ): Promise<CreateProjectState> {
   const supabase = await createClient();
 
-  const {
-    data: claimsData,
-    error: claimsError,
-  } = await supabase.auth.getClaims();
+  const { data: claimsData, error: claimsError } =
+    await supabase.auth.getClaims();
 
   const userId = claimsData?.claims?.sub;
 
@@ -56,13 +55,9 @@ export async function createProjectAction(
   const summary = String(formData.get("summary") ?? "").trim();
   const details = String(formData.get("details") ?? "").trim();
   const externalUrl = String(formData.get("externalUrl") ?? "").trim();
-  const technologiesRaw = String(
-    formData.get("technologies") ?? ""
-  ).trim();
+  const technologiesRaw = String(formData.get("technologies") ?? "").trim();
   const published = formData.get("published") === "on";
-const displayOrder = Number(
-  formData.get("displayOrder") ?? 0
-);
+  const displayOrder = Number(formData.get("displayOrder") ?? 0);
 
   if (!title || !category || !summary) {
     return {
@@ -71,6 +66,12 @@ const displayOrder = Number(
     };
   }
 
+  const metadata = parseProjectMetadata(formData);
+  if (!metadata.success)
+    return {
+      success: false,
+      message: "Revise a situação, disponibilidade e nomes dos pesquisadores.",
+    };
   const slug = makeSlug(title);
 
   const technologies = technologiesRaw
@@ -85,14 +86,15 @@ const displayOrder = Number(
     title,
     category,
     summary,
+    ...metadata.data,
     details: details || null,
     external_url: externalUrl || null,
     technologies,
     published,
     display_order:
-  Number.isFinite(displayOrder) && displayOrder >= 0
-    ? Math.floor(displayOrder)
-    : 0,
+      Number.isFinite(displayOrder) && displayOrder >= 0
+        ? Math.floor(displayOrder)
+        : 0,
   });
 
   if (error) {
@@ -102,8 +104,7 @@ const displayOrder = Number(
     ) {
       return {
         success: false,
-        message:
-          "Já existe um projeto com este título ou slug semelhante.",
+        message: "Já existe um projeto com este título ou slug semelhante.",
       };
     }
 
@@ -115,20 +116,20 @@ const displayOrder = Number(
 
   revalidatePath("/admin");
   revalidatePath("/projetos");
+  revalidatePath("/");
+  revalidatePath("/projetos/[slug]", "page");
 
   return {
     success: true,
     message: "Projeto cadastrado com sucesso.",
   };
-}   
+}
 
 export async function deleteProjectAction(id: string) {
   const supabase = await createClient();
 
-  const {
-    data: claimsData,
-    error: claimsError,
-  } = await supabase.auth.getClaims();
+  const { data: claimsData, error: claimsError } =
+    await supabase.auth.getClaims();
 
   const userId = claimsData?.claims?.sub;
 
@@ -152,10 +153,7 @@ export async function deleteProjectAction(id: string) {
     };
   }
 
-  const { error } = await supabase
-    .from("projects")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("projects").delete().eq("id", id);
 
   if (error) {
     return {
@@ -166,6 +164,8 @@ export async function deleteProjectAction(id: string) {
 
   revalidatePath("/admin");
   revalidatePath("/projetos");
+  revalidatePath("/");
+  revalidatePath("/projetos/[slug]", "page");
 
   return {
     success: true,
@@ -180,14 +180,12 @@ export type UpdateProjectState = {
 
 export async function updateProjectAction(
   _previousState: UpdateProjectState,
-  formData: FormData
+  formData: FormData,
 ): Promise<UpdateProjectState> {
   const supabase = await createClient();
 
-  const {
-    data: claimsData,
-    error: claimsError,
-  } = await supabase.auth.getClaims();
+  const { data: claimsData, error: claimsError } =
+    await supabase.auth.getClaims();
 
   const userId = claimsData?.claims?.sub;
 
@@ -218,14 +216,10 @@ export async function updateProjectAction(
   const details = String(formData.get("details") ?? "").trim();
   const externalUrl = String(formData.get("externalUrl") ?? "").trim();
 
-  const technologiesRaw = String(
-    formData.get("technologies") ?? ""
-  ).trim();
+  const technologiesRaw = String(formData.get("technologies") ?? "").trim();
 
   const published = formData.get("published") === "on";
-const displayOrder = Number(
-  formData.get("displayOrder") ?? 0
-);
+  const displayOrder = Number(formData.get("displayOrder") ?? 0);
 
   if (!id || !title || !category || !summary) {
     return {
@@ -234,6 +228,12 @@ const displayOrder = Number(
     };
   }
 
+  const metadata = parseProjectMetadata(formData);
+  if (!metadata.success)
+    return {
+      success: false,
+      message: "Revise a situação, disponibilidade e nomes dos pesquisadores.",
+    };
   const slug = makeSlug(title);
 
   const technologies = technologiesRaw
@@ -250,14 +250,15 @@ const displayOrder = Number(
       title,
       category,
       summary,
+      ...metadata.data,
       details: details || null,
       external_url: externalUrl || null,
       technologies,
       published,
       display_order:
-  Number.isFinite(displayOrder) && displayOrder >= 0
-    ? Math.floor(displayOrder)
-    : 0,
+        Number.isFinite(displayOrder) && displayOrder >= 0
+          ? Math.floor(displayOrder)
+          : 0,
     })
     .eq("id", id);
 
@@ -268,8 +269,7 @@ const displayOrder = Number(
     ) {
       return {
         success: false,
-        message:
-          "Já existe outro projeto com este título ou slug.",
+        message: "Já existe outro projeto com este título ou slug.",
       };
     }
 
@@ -281,6 +281,8 @@ const displayOrder = Number(
 
   revalidatePath("/admin");
   revalidatePath("/projetos");
+  revalidatePath("/");
+  revalidatePath("/projetos/[slug]", "page");
 
   return {
     success: true,
@@ -296,14 +298,12 @@ export type UploadProjectCoverState = {
 
 export async function uploadProjectCoverAction(
   _previousState: UploadProjectCoverState,
-  formData: FormData
+  formData: FormData,
 ): Promise<UploadProjectCoverState> {
   const supabase = await createClient();
 
-  const {
-    data: claimsData,
-    error: claimsError,
-  } = await supabase.auth.getClaims();
+  const { data: claimsData, error: claimsError } =
+    await supabase.auth.getClaims();
 
   const userId = claimsData?.claims?.sub;
 
@@ -327,9 +327,7 @@ export async function uploadProjectCoverAction(
     };
   }
 
-  const projectId = String(
-    formData.get("projectId") ?? ""
-  ).trim();
+  const projectId = String(formData.get("projectId") ?? "").trim();
 
   const file = formData.get("cover");
 
@@ -347,11 +345,7 @@ export async function uploadProjectCoverAction(
     };
   }
 
-  const allowedTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-  ];
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 
   if (!allowedTypes.includes(file.type)) {
     return {
@@ -369,11 +363,9 @@ export async function uploadProjectCoverAction(
     };
   }
 
-  const extension =
-    file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
 
-  const filePath =
-    `${projectId}/cover-${Date.now()}.${extension}`;
+  const filePath = `${projectId}/cover-${Date.now()}.${extension}`;
 
   const { error: uploadError } = await supabase.storage
     .from("project-covers")
@@ -385,8 +377,7 @@ export async function uploadProjectCoverAction(
   if (uploadError) {
     return {
       success: false,
-      message:
-        `Não foi possível enviar a imagem: ${uploadError.message}`,
+      message: `Não foi possível enviar a imagem: ${uploadError.message}`,
     };
   }
 
@@ -398,19 +389,18 @@ export async function uploadProjectCoverAction(
     .eq("id", projectId);
 
   if (updateError) {
-    await supabase.storage
-      .from("project-covers")
-      .remove([filePath]);
+    await supabase.storage.from("project-covers").remove([filePath]);
 
     return {
       success: false,
-      message:
-        `A imagem foi enviada, mas não pôde ser vinculada ao projeto: ${updateError.message}`,
+      message: `A imagem foi enviada, mas não pôde ser vinculada ao projeto: ${updateError.message}`,
     };
   }
 
   revalidatePath("/admin");
   revalidatePath("/projetos");
+  revalidatePath("/");
+  revalidatePath("/projetos/[slug]", "page");
 
   return {
     success: true,

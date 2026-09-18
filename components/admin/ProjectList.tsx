@@ -16,6 +16,9 @@ type Project = {
   technologies: string[];
   published: boolean;
   display_order: number;
+  publication_status?: string | null;
+  availability?: string | null;
+  researchers?: string[];
 };
 
 export default function ProjectList() {
@@ -31,20 +34,7 @@ export default function ProjectList() {
   async function loadProjects() {
     const { data, error } = await supabase
       .from("projects")
-      .select(
-        `
-        id,
-        title,
-        category,
-        summary,
-        details,
-        cover_path,
-        external_url,
-        technologies,
-        published,
-        display_order
-        `,
-      )
+      .select("*")
       .order("display_order", { ascending: true })
       .order("created_at", { ascending: false });
 
@@ -63,20 +53,7 @@ export default function ProjectList() {
       {
         const { data, error } = await supabase
           .from("projects")
-          .select(
-            `
-        id,
-        title,
-        category,
-        summary,
-        details,
-        cover_path,
-        external_url,
-        technologies,
-        published,
-        display_order
-        `,
-          )
+          .select("*")
           .order("display_order", { ascending: true })
           .order("created_at", { ascending: false });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import SidebarBrand from "@/components/workspace/SidebarBrand";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import NewClientForm from "@/components/admin/NewClientForm";
@@ -14,6 +15,7 @@ import AdminDeadlines from "@/components/workspace/AdminDeadlines";
 import SignOut from "@/components/workspace/SignOut";
 
 type PendingComment = {
+  approved: boolean;
   id: string;
   author_name: string;
   content: string;
@@ -22,6 +24,7 @@ type PendingComment = {
 
 export default function Admin() {
   const [comments, setComments] = useState<PendingComment[]>([]);
+  const [commentFilter, setCommentFilter] = useState("todos");
   const [tab, setTab] = useState("visao");
   const [focusedClient, setFocusedClient] = useState("");
 
@@ -42,8 +45,7 @@ export default function Admin() {
       {
         const { data, error } = await supabase
           .from("comments")
-          .select("id,author_name,content,created_at")
-          .eq("approved", false)
+          .select("id,author_name,content,created_at,approved")
           .order("created_at", { ascending: false });
 
         if (error) {
@@ -70,14 +72,14 @@ export default function Admin() {
     })();
   }, []);
 
-  async function approveComment(id: string) {
+  async function approveComment(id: string, approved: boolean = true) {
     setModeratingId(id);
     setCommentMessage("");
 
     const { error } = await supabase
       .from("comments")
       .update({
-        approved: true,
+        approved,
       })
       .eq("id", id);
 
@@ -89,9 +91,17 @@ export default function Admin() {
       return;
     }
 
-    setComments((current) => current.filter((comment) => comment.id !== id));
+    setComments((current) =>
+      current.map((comment) =>
+        comment.id === id ? { ...comment, approved } : comment,
+      ),
+    );
 
-    setCommentMessage("Comentário aprovado com sucesso.");
+    setCommentMessage(
+      approved
+        ? "Comentário publicado."
+        : "Comentário retirado da página pública.",
+    );
 
     setModeratingId(null);
   }
@@ -160,9 +170,7 @@ export default function Admin() {
   return (
     <main className="dashboard admin">
       <aside>
-        <strong>
-          HAS<span>ANALYTICS / ADMIN</span>
-        </strong>
+        <SidebarBrand admin />
         <small>GESTÃO DA OPERAÇÃO</small>
 
         {tabs.map((item) => (
@@ -220,7 +228,7 @@ export default function Admin() {
 
               <article>
                 <b>Comentários pendentes</b>
-                <strong>{comments.length}</strong>
+                <strong>{comments.filter((c) => !c.approved).length}</strong>
               </article>
             </div>
             <AdminDeadlines
@@ -354,7 +362,7 @@ export default function Admin() {
                 <h2>Moderação de comentários</h2>
 
                 <p>
-                  Analise os comentários enviados antes da publicação no site.
+                  Gerencie comentários pendentes e os que já aparecem no site.
                 </p>
               </div>
             </div>
@@ -363,41 +371,73 @@ export default function Admin() {
               <p className="admin-client-message success">{commentMessage}</p>
             )}
 
-            {comments.length === 0 ? (
-              <p>Não existem comentários pendentes.</p>
+            <div className="comment-admin-filters">
+              {[
+                ["todos", "Todos"],
+                ["pendentes", "Pendentes"],
+                ["publicados", "Publicados"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setCommentFilter(value)}
+                  aria-pressed={commentFilter === value}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {comments.filter(
+              (c) =>
+                commentFilter === "todos" ||
+                (commentFilter === "publicados" ? c.approved : !c.approved),
+            ).length === 0 ? (
+              <p>Não existem comentários nesta seleção.</p>
             ) : (
               <div className="doc-list">
-                {comments.map((comment) => (
-                  <article key={comment.id}>
-                    <div>
-                      <strong>{comment.author_name}</strong>
+                {comments
+                  .filter(
+                    (c) =>
+                      commentFilter === "todos" ||
+                      (commentFilter === "publicados"
+                        ? c.approved
+                        : !c.approved),
+                  )
+                  .map((comment) => (
+                    <article key={comment.id}>
+                      <div>
+                        <strong>{comment.author_name}</strong>{" "}
+                        <span className="comment-status">
+                          {comment.approved ? "Publicado" : "Pendente"}
+                        </span>
+                        <small>{formatCommentDate(comment.created_at)}</small>
+                        <p>{comment.content}</p>
+                      </div>
 
-                      <small>{formatCommentDate(comment.created_at)}</small>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            approveComment(comment.id, !comment.approved)
+                          }
+                          disabled={moderatingId === comment.id}
+                        >
+                          {moderatingId === comment.id
+                            ? "Processando..."
+                            : comment.approved
+                              ? "Retirar do site"
+                              : "Aprovar"}
+                        </button>
 
-                      <p>{comment.content}</p>
-                    </div>
-
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => approveComment(comment.id)}
-                        disabled={moderatingId === comment.id}
-                      >
-                        {moderatingId === comment.id
-                          ? "Processando..."
-                          : "Aprovar"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setCommentToDelete(comment)}
-                        disabled={moderatingId === comment.id}
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                        <button
+                          type="button"
+                          onClick={() => setCommentToDelete(comment)}
+                          disabled={moderatingId === comment.id}
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </article>
+                  ))}
               </div>
             )}
           </div>

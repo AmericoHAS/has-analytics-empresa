@@ -1,4 +1,5 @@
 "use client";
+import ProjectMetadataFields from "./ProjectMetadataFields";
 
 import { useActionState, useEffect, useRef } from "react";
 import {
@@ -14,7 +15,7 @@ const initialState: CreateProjectState = {
 export default function NewProjectForm() {
   const [state, formAction, pending] = useActionState(
     createProjectAction,
-    initialState
+    initialState,
   );
 
   const formRef = useRef<HTMLFormElement>(null);
@@ -44,7 +45,7 @@ export default function NewProjectForm() {
           id="category"
           name="category"
           type="text"
-          placeholder="Ex.: Bioestatística"
+          placeholder="Ex.: Bioestatística, Zootecnia, Pesquisa aplicada"
           required
         />
       </div>
@@ -81,6 +82,7 @@ export default function NewProjectForm() {
         <small>Separe as tecnologias por vírgulas.</small>
       </div>
 
+      <ProjectMetadataFields />
       <div className="admin-client-field">
         <label htmlFor="externalUrl">Link externo</label>
         <input
@@ -90,29 +92,22 @@ export default function NewProjectForm() {
           placeholder="https://..."
         />
       </div>
-<div className="admin-client-field">
-  <label htmlFor="displayOrder">
-    Ordem de exibição
-  </label>
+      <div className="admin-client-field">
+        <label htmlFor="displayOrder">Ordem de exibição</label>
 
-  <input
-    id="displayOrder"
-    name="displayOrder"
-    type="number"
-    min="0"
-    defaultValue="0"
-  />
+        <input
+          id="displayOrder"
+          name="displayOrder"
+          type="number"
+          min="0"
+          defaultValue="0"
+        />
 
-  <small>
-    Números menores aparecem primeiro.
-  </small>
-</div>
+        <small>Números menores aparecem primeiro.</small>
+      </div>
       <div className="admin-client-field">
         <label>
-          <input
-            type="checkbox"
-            name="published"
-          />
+          <input type="checkbox" name="published" />
           Publicar projeto imediatamente
         </label>
       </div>

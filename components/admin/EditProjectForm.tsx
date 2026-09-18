@@ -1,4 +1,5 @@
 "use client";
+import ProjectMetadataFields from "./ProjectMetadataFields";
 
 import { useActionState, useEffect } from "react";
 import {
@@ -18,6 +19,9 @@ type Project = {
   technologies: string[];
   published: boolean;
   display_order: number;
+  publication_status?: string | null;
+  availability?: string | null;
+  researchers?: string[];
 };
 
 type EditProjectFormProps = {
@@ -39,17 +43,15 @@ export default function EditProjectForm({
   project,
   onSuccess,
 }: EditProjectFormProps) {
-  const [updateState, updateFormAction, updatePending] =
-    useActionState(
-      updateProjectAction,
-      initialUpdateState
-    );
+  const [updateState, updateFormAction, updatePending] = useActionState(
+    updateProjectAction,
+    initialUpdateState,
+  );
 
-  const [coverState, coverFormAction, coverPending] =
-    useActionState(
-      uploadProjectCoverAction,
-      initialCoverState
-    );
+  const [coverState, coverFormAction, coverPending] = useActionState(
+    uploadProjectCoverAction,
+    initialCoverState,
+  );
 
   useEffect(() => {
     if (updateState.success) {
@@ -65,20 +67,11 @@ export default function EditProjectForm({
 
   return (
     <div>
-      <form
-        action={coverFormAction}
-        className="admin-project-form"
-      >
-        <input
-          type="hidden"
-          name="projectId"
-          value={project.id}
-        />
+      <form action={coverFormAction} className="admin-project-form">
+        <input type="hidden" name="projectId" value={project.id} />
 
         <div className="admin-client-field">
-          <label htmlFor={`cover-${project.id}`}>
-            Capa do projeto
-          </label>
+          <label htmlFor={`cover-${project.id}`}>Capa do projeto</label>
 
           <input
             id={`cover-${project.id}`}
@@ -88,18 +81,11 @@ export default function EditProjectForm({
             required
           />
 
-          <small>
-            Formatos aceitos: JPG, PNG ou WebP. Máximo de 5 MB.
-          </small>
+          <small>Formatos aceitos: JPG, PNG ou WebP. Máximo de 5 MB.</small>
         </div>
 
-        <button
-          type="submit"
-          disabled={coverPending}
-        >
-          {coverPending
-            ? "Enviando..."
-            : "Enviar nova capa"}
+        <button type="submit" disabled={coverPending}>
+          {coverPending ? "Enviando..." : "Enviar nova capa"}
         </button>
 
         {coverState.message && (
@@ -118,20 +104,11 @@ export default function EditProjectForm({
 
       <hr style={{ margin: "2rem 0" }} />
 
-      <form
-        action={updateFormAction}
-        className="admin-project-form"
-      >
-        <input
-          type="hidden"
-          name="id"
-          value={project.id}
-        />
+      <form action={updateFormAction} className="admin-project-form">
+        <input type="hidden" name="id" value={project.id} />
 
         <div className="admin-client-field">
-          <label htmlFor={`title-${project.id}`}>
-            Título do projeto
-          </label>
+          <label htmlFor={`title-${project.id}`}>Título do projeto</label>
 
           <input
             id={`title-${project.id}`}
@@ -143,23 +120,20 @@ export default function EditProjectForm({
         </div>
 
         <div className="admin-client-field">
-          <label htmlFor={`category-${project.id}`}>
-            Categoria
-          </label>
+          <label htmlFor={`category-${project.id}`}>Categoria</label>
 
           <input
             id={`category-${project.id}`}
             name="category"
             type="text"
+            placeholder="Categorias separadas por vírgula"
             defaultValue={project.category}
             required
           />
         </div>
 
         <div className="admin-client-field">
-          <label htmlFor={`summary-${project.id}`}>
-            Resumo
-          </label>
+          <label htmlFor={`summary-${project.id}`}>Resumo</label>
 
           <textarea
             id={`summary-${project.id}`}
@@ -171,9 +145,7 @@ export default function EditProjectForm({
         </div>
 
         <div className="admin-client-field">
-          <label htmlFor={`details-${project.id}`}>
-            Detalhes
-          </label>
+          <label htmlFor={`details-${project.id}`}>Detalhes</label>
 
           <textarea
             id={`details-${project.id}`}
@@ -184,9 +156,7 @@ export default function EditProjectForm({
         </div>
 
         <div className="admin-client-field">
-          <label htmlFor={`technologies-${project.id}`}>
-            Tecnologias
-          </label>
+          <label htmlFor={`technologies-${project.id}`}>Tecnologias</label>
 
           <input
             id={`technologies-${project.id}`}
@@ -195,15 +165,12 @@ export default function EditProjectForm({
             defaultValue={project.technologies.join(", ")}
           />
 
-          <small>
-            Separe as tecnologias por vírgulas.
-          </small>
+          <small>Separe as tecnologias por vírgulas.</small>
         </div>
 
+        <ProjectMetadataFields project={project} />
         <div className="admin-client-field">
-          <label htmlFor={`externalUrl-${project.id}`}>
-            Link externo
-          </label>
+          <label htmlFor={`externalUrl-${project.id}`}>Link externo</label>
 
           <input
             id={`externalUrl-${project.id}`}
@@ -213,23 +180,21 @@ export default function EditProjectForm({
             placeholder="https://..."
           />
         </div>
-<div className="admin-client-field">
-  <label htmlFor={`displayOrder-${project.id}`}>
-    Ordem de exibição
-  </label>
+        <div className="admin-client-field">
+          <label htmlFor={`displayOrder-${project.id}`}>
+            Ordem de exibição
+          </label>
 
-  <input
-    id={`displayOrder-${project.id}`}
-    name="displayOrder"
-    type="number"
-    min="0"
-    defaultValue={project.display_order}
-  />
+          <input
+            id={`displayOrder-${project.id}`}
+            name="displayOrder"
+            type="number"
+            min="0"
+            defaultValue={project.display_order}
+          />
 
-  <small>
-    Números menores aparecem primeiro.
-  </small>
-</div>
+          <small>Números menores aparecem primeiro.</small>
+        </div>
         <div className="admin-client-field">
           <label>
             <input
@@ -237,18 +202,12 @@ export default function EditProjectForm({
               name="published"
               defaultChecked={project.published}
             />
-
             Publicado
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={updatePending}
-        >
-          {updatePending
-            ? "Salvando..."
-            : "Salvar alterações"}
+        <button type="submit" disabled={updatePending}>
+          {updatePending ? "Salvando..." : "Salvar alterações"}
         </button>
 
         {updateState.message && (

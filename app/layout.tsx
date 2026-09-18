@@ -3,6 +3,7 @@ import "./globals.css";
 import "./workspace.css";
 import "./public.css";
 import "./account-flow.css";
+import "./additions.css";
 
 export const metadata: Metadata = {
   title: "HAS Analytics",

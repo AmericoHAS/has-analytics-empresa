@@ -11,6 +11,9 @@ export type PublicProject = {
   external_url: string | null;
   technologies: string[];
   display_order: number;
+  publication_status?: string | null;
+  availability?: string | null;
+  researchers?: string[];
 };
 
 export async function getPublishedProjects(): Promise<PublicProject[]> {
@@ -18,20 +21,7 @@ export async function getPublishedProjects(): Promise<PublicProject[]> {
 
   const { data, error } = await supabase
     .from("projects")
-    .select(
-      `
-      id,
-      slug,
-      title,
-      category,
-      summary,
-      details,
-      cover_path,
-      external_url,
-      technologies,
-      display_order
-      `
-    )
+    .select("*")
     .eq("published", true)
     .order("display_order", { ascending: true })
     .order("created_at", { ascending: false });
@@ -68,20 +58,7 @@ export async function getFeaturedProjects(
 
   const { data, error } = await supabase
     .from("projects")
-    .select(
-      `
-      id,
-      slug,
-      title,
-      category,
-      summary,
-      details,
-      cover_path,
-      external_url,
-      technologies,
-      display_order
-      `
-    )
+    .select("*")
     .eq("published", true)
     .order("display_order", { ascending: true })
     .order("created_at", { ascending: false })

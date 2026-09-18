@@ -27,9 +27,9 @@ const examples = [
     text: "Sites, ambientes de acompanhamento e experiências educacionais. Cada interface nasce de um fluxo de uso: o que a pessoa precisa fazer, entender e acompanhar.",
     tags: ["Sistemas web", "Educação", "Experiência de uso"],
     values: [15, 27, 41, 56, 64, 79, 86, 100],
-    axis: "Etapas de uma entrega",
+    axis: "Cenários ilustrativos",
     caption:
-      "Representação ilustrativa do percurso de desenvolvimento, sem métricas comerciais.",
+      "Boxplots com dados simulados: a caixa mostra quartis, a linha central indica a mediana e as hastes mostram a amplitude ilustrada; não são métricas de clientes.",
   },
 ];
 export function ProjectExplorer() {
@@ -113,41 +113,91 @@ export function ProjectExplorer() {
                   <path key={y} d={`M30 ${y} H535`} />
                 ))}
               </g>
-              {item.values.map((value, index) => (
-                <rect
-                  className="animated-bar"
-                  key={index}
-                  x={30 + index * 65}
-                  y={240 - value * 1.7}
-                  width="28"
-                  height={value * 1.7}
-                  rx="5"
-                  fill="currentColor"
-                  opacity=".25"
-                  style={{ animationDelay: `${index * 0.08}s` }}
-                />
-              ))}
-              <polyline
-                className="animated-line"
-                points={points}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                pathLength="1"
-              />
-              {item.values.map((value, index) => (
-                <circle
-                  key={index}
-                  cx={45 + index * 65}
-                  cy={230 - value * 1.9}
-                  r="5"
-                  fill="#071e3a"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <title>{`${value} · valor ilustrativo`}</title>
-                </circle>
-              ))}
+              {active === 2 ? (
+                <g>
+                  {[
+                    [80, 45, 80, 120, 155, 190],
+                    [210, 65, 100, 135, 170, 215],
+                    [340, 30, 65, 95, 140, 180],
+                    [470, 55, 90, 115, 150, 205],
+                  ].map(([x, top, q3, median, q1, bottom], i) => (
+                    <g
+                      key={x}
+                      className="boxplot-group"
+                      style={{ animationDelay: `${i * 0.1}s` }}
+                    >
+                      <title>{`Cenário ${i + 1}: distribuição simulada`}</title>
+                      <path
+                        d={`M${x} ${top}V${bottom} M${x - 15} ${top}H${x + 15} M${x - 15} ${bottom}H${x + 15}`}
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      />
+                      <rect
+                        x={x - 27}
+                        y={q3}
+                        width="54"
+                        height={q1 - q3}
+                        fill="#164b69"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        rx="4"
+                      />
+                      <path
+                        d={`M${x - 27} ${median}H${x + 27}`}
+                        stroke="#fff"
+                        strokeWidth="3"
+                      />
+                      <text
+                        x={x}
+                        y="252"
+                        textAnchor="middle"
+                        fill="currentColor"
+                        fontSize="12"
+                      >
+                        {String.fromCharCode(65 + i)}
+                      </text>
+                    </g>
+                  ))}
+                </g>
+              ) : (
+                <>
+                  {item.values.map((value, index) => (
+                    <rect
+                      className="animated-bar"
+                      key={index}
+                      x={30 + index * 65}
+                      y={240 - value * 1.7}
+                      width="28"
+                      height={value * 1.7}
+                      rx="5"
+                      fill="currentColor"
+                      opacity=".25"
+                      style={{ animationDelay: `${index * 0.08}s` }}
+                    />
+                  ))}
+                  <polyline
+                    className="animated-line"
+                    points={points}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    pathLength="1"
+                  />
+                  {item.values.map((value, index) => (
+                    <circle
+                      key={index}
+                      cx={45 + index * 65}
+                      cy={230 - value * 1.9}
+                      r="5"
+                      fill="#071e3a"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <title>{`${value} · valor ilustrativo`}</title>
+                    </circle>
+                  ))}
+                </>
+              )}
               <text
                 x="280"
                 y="273"

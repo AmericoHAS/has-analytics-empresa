@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+import {z} from 'zod';
+const exports={};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/project-metadata.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,URL,require:(id)=>{if(id==='zod')return {z};throw Error(id)}});
+test('categories split independently, trim blanks and preserve unique labels',()=>assert.equal(JSON.stringify(exports.splitProjectTags('R, Bioestatística; R\n Zootecnia ')),JSON.stringify(['R','Bioestatística','Zootecnia'])));
+test('project metadata accepts publication status, access note and researcher names',()=>{const form=new FormData();form.set('publicationStatus',' Manuscrito em submissão ');form.set('availability','Disponível após publicação');form.set('researchers','Haward Américo\nPesquisadora — UEM');const result=exports.parseProjectMetadata(form);assert.equal(result.success,true);assert.equal(result.data.researchers.length,2);assert.equal(result.data.publication_status,'Manuscrito em submissão')});
+test('old projects can keep all optional fields empty',()=>{const result=exports.parseProjectMetadata(new FormData());assert.equal(result.success,true);assert.equal(result.data.researchers.length,0)});
+test('oversized public metadata is rejected',()=>{const form=new FormData();form.set('publicationStatus','x'.repeat(121));assert.equal(exports.parseProjectMetadata(form).success,false)});
+test('external project links accept web URLs and reject executable or malformed URLs',()=>{assert.equal(exports.safeProjectUrl('javascript:alert(1)'),null);assert.equal(exports.safeProjectUrl('data:text/html,test'),null);assert.equal(exports.safeProjectUrl('invalid'),null);assert.equal(exports.safeProjectUrl('https://example.org/paper'),'https://example.org/paper')});

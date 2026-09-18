@@ -1,23 +1,20 @@
 "use client";
 
+import Link from "next/link";
+import { splitProjectTags, safeProjectUrl } from "@/lib/project-metadata";
 import type { PublicProject } from "@/lib/projects-db";
 
 type ProjectRailProps = {
   projects: PublicProject[];
 };
 
-export function ProjectRail({
-  projects,
-}: ProjectRailProps) {
-  function getCoverUrl(
-    coverPath: string | null
-  ) {
+export function ProjectRail({ projects }: ProjectRailProps) {
+  function getCoverUrl(coverPath: string | null) {
     if (!coverPath) {
       return null;
     }
 
-    const url =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     if (!url) {
       return null;
@@ -27,25 +24,16 @@ export function ProjectRail({
   }
 
   if (projects.length === 0) {
-    return (
-      <p>
-        Nenhum projeto publicado no momento.
-      </p>
-    );
+    return <p>Nenhum projeto publicado no momento.</p>;
   }
 
   return (
     <div className="rail">
       {projects.map((project) => {
-        const coverUrl = getCoverUrl(
-          project.cover_path
-        );
+        const coverUrl = getCoverUrl(project.cover_path);
 
         return (
-          <article
-            className="project"
-            key={project.id}
-          >
+          <article className="project" key={project.id}>
             <div className="project-image">
               {coverUrl ? (
                 <img
@@ -73,34 +61,44 @@ export function ProjectRail({
             </div>
 
             <div className="project-body">
-              <span className="tag">
-                {project.category}
-              </span>
+              <div className="chips project-categories">
+                {splitProjectTags(project.category).map((category) => (
+                  <span key={category}>{category}</span>
+                ))}
+              </div>
+              {project.publication_status && (
+                <p className="project-publication">
+                  {project.publication_status}
+                </p>
+              )}
 
-              <h3>
-                {project.title}
-              </h3>
+              <h3>{project.title}</h3>
 
-              <p>
-                {project.summary}
-              </p>
+              <p>{project.summary}</p>
 
               {project.technologies.length > 0 && (
                 <div className="chips">
-                  {project.technologies
-                    .slice(0, 3)
-                    .map((technology) => (
-                      <span key={technology}>
-                        {technology}
-                      </span>
-                    ))}
+                  {project.technologies.slice(0, 3).map((technology) => (
+                    <span key={technology}>{technology}</span>
+                  ))}
                 </div>
               )}
 
-              {project.external_url && (
+              <Link
+                className="text-link project-more"
+                href={`/projetos/${encodeURIComponent(project.slug)}`}
+              >
+                Ver mais →
+              </Link>
+              {project.availability && (
+                <small className="project-availability">
+                  {project.availability}
+                </small>
+              )}
+              {safeProjectUrl(project.external_url) && (
                 <a
                   className="text-link"
-                  href={project.external_url}
+                  href={safeProjectUrl(project.external_url)!}
                   target="_blank"
                   rel="noreferrer"
                 >

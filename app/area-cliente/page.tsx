@@ -1,3 +1,6 @@
+import SidebarBrand from "@/components/workspace/SidebarBrand";
+import { MessageCircle } from "lucide-react";
+import { publicContact } from "@/lib/public-site";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -17,16 +20,22 @@ export default async function ClientArea() {
   return (
     <main className="dashboard client-dashboard">
       <aside>
-        <strong>
-          HAS<span>ANALYTICS</span>
-        </strong>
+        <SidebarBrand />
         <small>SEU ESPAÇO DE PESQUISA</small>
         <Link className="active" href="/area-cliente">
           Meu acompanhamento
         </Link>
-        <Link href="/">Site HAS Analytics</Link>
-<Link href="/orcamento/acesso">Solicitar novo orçamento</Link>
+        <Link href="/orcamento/acesso">Solicitar novo orçamento</Link>
         <SignOut />
+        <a
+          className="sidebar-whatsapp"
+          href={publicContact.whatsapp}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <MessageCircle size={20} />
+          Falar pelo WhatsApp
+        </a>
       </aside>
       <section>
         <header className="dashboard-hero">
