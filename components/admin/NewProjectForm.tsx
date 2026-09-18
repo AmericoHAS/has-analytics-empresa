@@ -84,7 +84,7 @@ export default function NewProjectForm() {
 
       <ProjectMetadataFields />
       <div className="admin-client-field">
-        <label htmlFor="externalUrl">Link externo</label>
+        <label htmlFor="externalUrl">Link de acesso ao projeto (artigo, livro, site ou repositório)</label>
         <input
           id="externalUrl"
           name="externalUrl"

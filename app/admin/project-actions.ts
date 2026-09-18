@@ -1,6 +1,6 @@
 "use server";
 
-import { parseProjectMetadata } from "@/lib/project-metadata";
+import { parseProjectMetadata, safeProjectUrl } from "@/lib/project-metadata";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
@@ -66,6 +66,7 @@ export async function createProjectAction(
     };
   }
 
+  if (externalUrl && !safeProjectUrl(externalUrl)) return { success: false, message: "Informe um link válido começando com https:// ou http://." };
   const metadata = parseProjectMetadata(formData);
   if (!metadata.success)
     return {
@@ -228,6 +229,7 @@ export async function updateProjectAction(
     };
   }
 
+  if (externalUrl && !safeProjectUrl(externalUrl)) return { success: false, message: "Informe um link válido começando com https:// ou http://." };
   const metadata = parseProjectMetadata(formData);
   if (!metadata.success)
     return {

@@ -10,12 +10,14 @@ export function splitProjectTags(value: string) {
   ];
 }
 const schema = z.object({
+  project_type: z.string().trim().max(80),
   publication_status: z.string().trim().max(120),
   availability: z.string().trim().max(200),
   researchers: z.array(z.string().min(2).max(180)).max(40),
 });
 export function parseProjectMetadata(form: FormData) {
   return schema.safeParse({
+    project_type: String(form.get("projectType") ?? ""),
     publication_status: String(form.get("publicationStatus") ?? ""),
     availability: String(form.get("availability") ?? ""),
     researchers: splitProjectTags(String(form.get("researchers") ?? "")),

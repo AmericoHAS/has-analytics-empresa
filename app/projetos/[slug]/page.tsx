@@ -1,3 +1,5 @@
+import Image from "next/image";
+import { getProjectCoverUrl } from "@/lib/projects-db";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -24,6 +26,7 @@ export default async function ProjectDetail({
   if (!data) notFound();
   const project = data as PublicProject;
   const url = safeProjectUrl(project.external_url);
+  const cover = getProjectCoverUrl(project.cover_path);
   return (
     <PublicExperience>
       <Header />
@@ -33,6 +36,8 @@ export default async function ProjectDetail({
             ← Voltar aos projetos
           </Link>
           <article className="project-detail-card">
+            {cover && <div className="project-detail-cover"><Image src={cover} alt={`Capa do projeto ${project.title}`} width={1200} height={675} unoptimized priority /></div>}
+            {project.project_type && <p className="project-type">{project.project_type}</p>}
             <div className="chips project-categories">
               {splitProjectTags(project.category).map((category) => (
                 <span key={category}>{category}</span>
@@ -43,6 +48,7 @@ export default async function ProjectDetail({
             )}
             <h1>{project.title}</h1>
             <p className="project-detail-summary">{project.summary}</p>
+            {url && <a className="btn primary project-access" href={url} target="_blank" rel="noopener noreferrer">Acessar projeto ↗</a>}
             {project.details && (
               <div className="project-detail-text">{project.details}</div>
             )}
@@ -64,16 +70,7 @@ export default async function ProjectDetail({
             {project.availability && (
               <p className="project-availability">{project.availability}</p>
             )}
-            {url && (
-              <a
-                className="btn primary"
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Acessar projeto ↗
-              </a>
-            )}
+
           </article>
           <Link className="text-link" href="/">
             ← Voltar ao início

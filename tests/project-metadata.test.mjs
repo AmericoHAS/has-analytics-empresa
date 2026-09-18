@@ -11,3 +11,5 @@ test('project metadata accepts publication status, access note and researcher na
 test('old projects can keep all optional fields empty',()=>{const result=exports.parseProjectMetadata(new FormData());assert.equal(result.success,true);assert.equal(result.data.researchers.length,0)});
 test('oversized public metadata is rejected',()=>{const form=new FormData();form.set('publicationStatus','x'.repeat(121));assert.equal(exports.parseProjectMetadata(form).success,false)});
 test('external project links accept web URLs and reject executable or malformed URLs',()=>{assert.equal(exports.safeProjectUrl('javascript:alert(1)'),null);assert.equal(exports.safeProjectUrl('data:text/html,test'),null);assert.equal(exports.safeProjectUrl('invalid'),null);assert.equal(exports.safeProjectUrl('https://example.org/paper'),'https://example.org/paper')});
+
+test("production type accepts a custom label and rejects oversized values",()=>{const f=new FormData();f.set("projectType"," Livro ");assert.equal(exports.parseProjectMetadata(f).data.project_type,"Livro");f.set("projectType","x".repeat(81));assert.equal(exports.parseProjectMetadata(f).success,false)});

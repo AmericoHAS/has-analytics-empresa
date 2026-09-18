@@ -19,7 +19,7 @@ const examples = [
     values: [36, 62, 47, 78, 59, 88, 70, 93],
     axis: "Indicadores ilustrativos",
     caption:
-      "Valores simulados para demonstrar a apresentação visual de indicadores.",
+      "Dispersão de observações simuladas e curva de tendência média ilustrativa; não representa resultados de clientes.",
   },
   {
     name: "Soluções digitais",
@@ -29,7 +29,7 @@ const examples = [
     values: [15, 27, 41, 56, 64, 79, 86, 100],
     axis: "Cenários ilustrativos",
     caption:
-      "Boxplots com dados simulados: a caixa mostra quartis, a linha central indica a mediana e as hastes mostram a amplitude ilustrada; não são métricas de clientes.",
+      "Boxplots com dados simulados: a caixa mostra quartis, a linha central indica a mediana e as hastes mostram a amplitude sem os pontos extremos e os pontos isolados ilustram outliers; não são métricas de clientes.",
   },
 ];
 export function ProjectExplorer() {
@@ -147,6 +147,11 @@ export function ProjectExplorer() {
                         stroke="#fff"
                         strokeWidth="3"
                       />
+                      {[top - 16, bottom + 14].map((y, n) => (
+                        <circle key={n} cx={x + (n ? 4 : -3)} cy={y} r="3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                          <title>Outlier ilustrativo</title>
+                        </circle>
+                      ))}
                       <text
                         x={x}
                         y="252"
@@ -158,6 +163,16 @@ export function ProjectExplorer() {
                       </text>
                     </g>
                   ))}
+                </g>
+              ) : active === 1 ? (
+                <g>
+                  {Array.from({ length: 32 }, (_, i) => {
+                    const x = 42 + i * 15;
+                    const mean = 211 - 0.29 * (x - 42) + 13 * Math.sin((x - 42) / 95);
+                    return <circle key={i} className="boxplot-group" style={{ animationDelay: `${i * 0.025}s` }} cx={x} cy={mean + [19, -24, 8, -12, 27, -5, -20, 14][i % 8]} r="4.5" fill="currentColor" opacity=".65"><title>Observação simulada</title></circle>;
+                  })}
+                  <polyline className="animated-line" points={Array.from({length: 97}, (_, i) => {const x = 42 + i * 5; return `${x},${211 - 0.29 * (x - 42) + 13 * Math.sin((x - 42) / 95)}`;}).join(" ")} fill="none" stroke="#fff" strokeWidth="3" pathLength="1" />
+                  <text x="330" y="30" fill="#fff" fontSize="12">— Tendência média ilustrativa</text>
                 </g>
               ) : (
                 <>

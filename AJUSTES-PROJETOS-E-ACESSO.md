@@ -39,3 +39,14 @@ Os campos novos são opcionais. Projetos antigos continuam visíveis. A página 
 - Login conferido sem rolagem nas telas 1280×720, 390×844 e 375×667. Em telas excepcionalmente pequenas, com zoom ou teclado aberto, o conteúdo continua acessível por rolagem.
 - Navegação Ver mais e texto de detalhes conferidos com um projeto existente; boxplot e favicon verificados na prévia.
 - Nenhum projeto ou comentário de produção foi alterado ou excluído, e a migration não foi aplicada remotamente.
+
+## Ajustes complementares — gráficos, login e exclusão
+
+Execute `supabase/migrations/202609180002_project_presentation_and_delete.sql` no Supabase → SQL Editor após as migrations anteriores. Não execute novamente `schema.sql`.
+
+- Portfólio → Novo/Editar: campo **Tipo de projeto / produção** (artigo, livro, aplicativo ou texto personalizado). Preencha **Link de acesso ao projeto** com a URL completa, começando por https://. O botão público aparece quando um link válido estiver salvo.
+- A página de detalhes usa a mesma capa cadastrada no projeto. Não é necessário enviar a imagem novamente.
+- Clientes → selecione o cliente → Projetos → Editar → **Excluir projeto** → **Confirmar exclusão**. A exclusão remove projeto, checklist e notas internas. Documentos, arquivos, orçamentos e solicitações ficam preservados no cliente, sem vínculo com o projeto removido. A exclusão só é habilitada após o SQL acima e exige permissão de administrador.
+- Segundo gráfico com dispersão e curva média ilustrativa; boxplots com outliers. Login com logo ampliado e dimensionamento responsivo sem cortar conteúdo.
+
+Validação: 29 testes aprovados, integração PostgreSQL com RLS e preservação dos arquivos aprovada, build/TypeScript aprovados e lint sem erros (3 avisos de imagens já existentes). Login conferido sem rolagem em 1280×720, 375×667, 320×568 e 667×375. Nenhum projeto real foi excluído. Nenhuma migration foi aplicada no servidor e nenhum deploy foi realizado nesta edição.

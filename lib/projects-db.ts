@@ -11,6 +11,7 @@ export type PublicProject = {
   external_url: string | null;
   technologies: string[];
   display_order: number;
+  project_type?: string | null;
   publication_status?: string | null;
   availability?: string | null;
   researchers?: string[];

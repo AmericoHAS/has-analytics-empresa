@@ -1,4 +1,5 @@
 export type ProjectMetadata = {
+  project_type?: string | null;
   publication_status?: string | null;
   availability?: string | null;
   researchers?: string[] | null;
@@ -11,6 +12,14 @@ export default function ProjectMetadataFields({
   return (
     <fieldset className="project-metadata-fields">
       <legend>Apresentação pública do projeto</legend>
+      <label>
+        Tipo de projeto / produção
+        <input name="projectType" list="project-type-options" maxLength={80} defaultValue={project.project_type ?? ""} placeholder="Artigo, livro, aplicativo…" />
+        <datalist id="project-type-options">
+          {["Artigo científico", "Livro", "Capítulo de livro", "Dissertação", "Tese", "Relatório técnico", "Pesquisa", "Aplicativo", "Site", "Dashboard", "Material didático"].map(type => <option key={type} value={type} />)}
+        </datalist>
+        <small>Selecione uma sugestão ou escreva outro tipo.</small>
+      </label>
       <label>
         Situação da publicação
         <input

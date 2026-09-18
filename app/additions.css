@@ -285,3 +285,35 @@
     animation: none !important;
   }
 }
+
+/* Refinements: project access and viewport-sized login. */
+.project-more { display: block; width: fit-content; margin-left: auto; margin-right: 0; text-align: right; }
+.project-type { font-size: .78rem; font-weight: 800; color: #087dc1; text-transform: uppercase; letter-spacing: .06em; }
+.project-detail-cover { margin-bottom: 28px; overflow: hidden; border-radius: 16px; background: #e8f4f9; }
+.project-detail-cover img { display: block; width: 100%; height: auto; max-height: 480px; object-fit: contain; }
+.project-access { margin: 8px 0 16px; }
+.compact-login { min-height: 100dvh; grid-template-rows: minmax(min-content, 1fr); }
+.compact-login .auth-brand { padding: 18px 3vw; gap: 9px; }
+.compact-login .brand-orbit { width: min(100%, 530px, 67dvh); max-width: 530px; }
+.compact-login .brand-coin { inset: 17%; }
+.compact-login .orbit-tag, .compact-login .orbit-caption { display: none; }
+.compact-login .auth-form { margin: 0; padding-top: 24px; padding-bottom: 24px; }
+.project-delete-panel { border: 1px solid #efb6b6; border-radius: 12px; padding: 16px; background: #fff7f7; }
+.btn.danger { color: #a61c2f; border-color: #e1a0aa; background: #fff5f5; }
+@media (max-width: 800px) {
+  .compact-login { grid-template-rows: auto auto; align-content: center; }
+  .compact-login .auth-brand { padding: 8px 16px; gap: 3px; }
+  .compact-login .brand-orbit { width: min(260px, max(140px, calc(100dvh - 420px))); }
+  .compact-login .auth-brand h1 { font-size: clamp(.6rem, 2.2vw, .85rem); }
+  .compact-login .auth-form { padding: 12px max(22px, calc((100vw - 480px) / 2)); gap: 8px; }
+  .compact-login .auth-form label { gap: 3px; font-size: .88rem; }
+  .compact-login .auth-form input { padding: 8px 10px; }
+  .compact-login .auth-form .btn { padding: 9px 16px; }
+}
+@media (max-height: 500px) and (min-width: 600px) {
+  .compact-login { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
+  .compact-login .brand-orbit { width: min(70dvh, 300px); }
+  .compact-login .auth-brand h1 { white-space: normal; }
+  .compact-login .auth-form { gap: 6px; padding: 10px 20px; }
+  .compact-login .auth-form h2 { font-size: 1.5rem; margin: 0; }
+}

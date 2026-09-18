@@ -16,6 +16,7 @@ type Project = {
   technologies: string[];
   published: boolean;
   display_order: number;
+  project_type?: string | null;
   publication_status?: string | null;
   availability?: string | null;
   researchers?: string[];

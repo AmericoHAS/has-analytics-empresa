@@ -66,6 +66,7 @@ export function ProjectRail({ projects }: ProjectRailProps) {
                   <span key={category}>{category}</span>
                 ))}
               </div>
+              {project.project_type && <p className="project-type">{project.project_type}</p>}
               {project.publication_status && (
                 <p className="project-publication">
                   {project.publication_status}
