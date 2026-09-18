@@ -233,7 +233,14 @@ export default function Admin() {
         )}
 
         {tab === "configuracoes" && <CommercialSettings />}
-        {tab === "solicitacoes" && <BudgetRequests />}
+        {tab === "solicitacoes" && (
+          <BudgetRequests
+            onOpen={(id) => {
+              setFocusedClient(id);
+              setTab("clientes");
+            }}
+          />
+        )}
         {tab === "clientes" && (
           <div className="workspace-card">
             <div className="workspace-header">

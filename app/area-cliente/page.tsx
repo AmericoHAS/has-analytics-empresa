@@ -25,6 +25,7 @@ export default async function ClientArea() {
           Meu acompanhamento
         </Link>
         <Link href="/">Site HAS Analytics</Link>
+<Link href="/orcamento/acesso">Solicitar novo orçamento</Link>
         <SignOut />
       </aside>
       <section>

@@ -27,7 +27,7 @@ export default async function ClientAreaLayout({
     .single();
 
   if (profileError || !profile) {
-    redirect("/login");
+    redirect("/orcamento/acesso");
   }
 
   if (profile.role === "admin") {

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -64,7 +65,19 @@ export default async function Orcamento({
                 Não é necessário enviar arquivos ou criar uma senha nesta etapa.
               </p>
             </div>
-            <BudgetForm initialService={initial} />
+            <div>
+              <div className="account-option">
+                <strong>Quer criar seu acesso agora?</strong>
+                <p>
+                  Crie sua conta e envie o pedido diretamente para sua área
+                  privada. Se preferir, use o formulário rápido abaixo.
+                </p>
+                <Link className="btn primary" href="/orcamento/acesso">
+                  Criar acesso ou entrar e solicitar orçamento ↗
+                </Link>
+              </div>
+              <BudgetForm initialService={initial} />
+            </div>
           </div>
         </section>
       </main>

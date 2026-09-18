@@ -34,7 +34,8 @@ const admin = "00000000-0000-4000-8000-000000000001",
 await db.exec(
   `insert into auth.users(id) values('${admin}'),('${a}'),('${b}'); insert into profiles(id,full_name,role) values('${admin}','Admin','admin'),('${a}','Client A','client'),('${b}','Client B','client');insert into client_projects(id,client_id,title) values('${project}','${a}','Research');`,
 );
-if (process.env.TEST_MISSING_ADMIN_HELPER === "true") await db.exec("drop function public.is_admin() cascade");
+if (process.env.TEST_MISSING_ADMIN_HELPER === "true")
+  await db.exec("drop function public.is_admin() cascade");
 for (let pass = 0; pass < 2; pass++)
   for (const file of readdirSync("supabase/migrations")
     .filter((f) => f.endsWith(".sql"))
@@ -172,4 +173,58 @@ await denied("update notifications set email_status='sent'");
 console.log(
   "PASS notification deduplication, queue reservation and recipient isolation",
 );
+await db.exec(
+  "reset role;update auth.users set email='client@example.test' where id='" +
+    a +
+    "';",
+);
+const quoteId = "20000000-0000-4000-8000-000000000001";
+const quoteCall = `select submit_quote_request('${quoteId}','Client A','44900000000','Bioestatística e pesquisa','Projeto de pesquisa','Analisar as associações entre as variáveis do estudo.',null) as project_id`;
+await as("", "anon");
+await denied(quoteCall);
+await as(a);
+const submitted = (await db.query(quoteCall)).rows[0].project_id;
+assert.equal((await db.query(quoteCall)).rows[0].project_id, submitted);
+assert.equal((await db.query("select id from budget_requests")).rows.length, 1);
+assert.equal(
+  (
+    await db.query(
+      `select due_date from client_projects where id='${submitted}'`,
+    )
+  ).rows[0].due_date,
+  null,
+);
+await denied(
+  "insert into budget_requests(client_id,name,email,service_type,title,description) values('00000000-0000-4000-8000-000000000002','Fake','fake@example.test','test','Test','Test')",
+);
+await denied(
+  quoteCall.replace(quoteId, "20000000-0000-4000-8000-000000000002"),
+);
+await as(b);
+assert.equal((await db.query("select id from budget_requests")).rows.length, 0);
+await as(admin);
+assert.equal((await db.query("select id from budget_requests")).rows.length, 1);
+await db.exec(
+  "reset role;insert into auth.users(id,email) values('00000000-0000-4000-8000-000000000004','new@example.test');",
+);
+await as("00000000-0000-4000-8000-000000000004");
+await denied(
+  quoteCall
+    .replace(quoteId, "20000000-0000-4000-8000-000000000003")
+    .replace("'Client A'", "null"),
+);
+assert.equal((await db.query("select id from profiles")).rows.length, 0);
+await db.query(
+  quoteCall.replace(quoteId, "20000000-0000-4000-8000-000000000003"),
+);
+assert.equal(
+  (await db.query("select role from profiles")).rows[0].role,
+  "client",
+);
+console.log(
+  "PASS quote authentication, RLS isolation, idempotency, throttling, profile creation and validation",
+);
+await as('', 'anon');
+await db.exec("insert into budget_requests(name,email,service_type,title,description) values('Quick request','quick@example.test','test','Quick project','A quick project request')");
+console.log('PASS existing anonymous quick-request flow preserved');
 await db.close();

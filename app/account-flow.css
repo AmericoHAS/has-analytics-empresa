@@ -1,0 +1,110 @@
+.quote-page {
+  background:
+    radial-gradient(ellipse at top right, #d5f3f8, transparent 60%), #eff6fa;
+  padding: 65px 0 100px;
+}
+.quote-grid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 65px;
+  align-items: start;
+}
+.quote-page h1 {
+  font-size: clamp(2.6rem, 4.4vw, 4rem);
+  line-height: 1.08;
+  letter-spacing: -0.05em;
+}
+.quote-form {
+  display: grid;
+  gap: 20px;
+  background: white;
+  border: 1px solid #ccdee7;
+  border-radius: 24px;
+  padding: 35px;
+  box-shadow: 0 20px 60px #0833530b;
+}
+.quote-form select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #c8dce7;
+  border-radius: 10px;
+  background: white;
+  font: inherit;
+}
+.quote-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.quote-form legend {
+  font-weight: 800;
+  font-size: 1.2rem;
+  margin-bottom: 18px;
+}
+.quote-form .choice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-weight: 400;
+  font-size: 0.87rem;
+}
+.quote-form .choice input {
+  margin-top: 7px;
+}
+.quote-form .form-message {
+  padding: 14px;
+  border: 1px solid #b6dce7;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.quote-steps {
+  display: grid;
+  gap: 24px;
+  margin: 40px 0;
+  padding-left: 22px;
+}
+.quote-steps li {
+  padding-left: 8px;
+}
+.quote-steps strong {
+  display: block;
+}
+.quote-form button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.account-option {
+  padding: 25px;
+  margin-bottom: 25px;
+  border: 1px solid #bddce8;
+  border-radius: 20px;
+  background: #edf9fc;
+}
+.account-option p {
+  color: #526b7c;
+}
+.quote-form input,
+.quote-form textarea {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+.quote-form .choice input {
+  width: auto;
+}
+@media (max-width: 800px) {
+  .quote-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .quote-form {
+    padding: 23px;
+  }
+  .quote-page {
+    padding-top: 35px;
+  }
+}

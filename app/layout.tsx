@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./workspace.css";
 import "./public.css";
+import "./account-flow.css";
 
 export const metadata: Metadata = {
   title: "HAS Analytics",

@@ -6,6 +6,7 @@ import NewClientForm from "./NewClientForm";
 
 type BudgetRequest = {
   id: string;
+  client_id: string | null;
   name: string;
   email: string;
   phone: string | null;
@@ -27,14 +28,18 @@ async function fetchRequests(): Promise<BudgetRequest[]> {
   const { data, error } = await supabase
     .from("budget_requests")
     .select(
-      "id,name,email,phone,service_type,title,description,desired_date,status,created_at",
+      "*",
     )
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as BudgetRequest[];
 }
 
-export default function BudgetRequests() {
+export default function BudgetRequests({
+  onOpen,
+}: {
+  onOpen: (id: string) => void;
+}) {
   const [items, setItems] = useState<BudgetRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -157,19 +162,28 @@ export default function BudgetRequests() {
                 {item.phone && <span>{item.phone}</span>}
               </div>
               <p className="request-description">{item.description}</p>
-              <button
-                className="btn"
-                onClick={() =>
-                  setSelected((current) =>
-                    current === item.id ? null : item.id,
-                  )
-                }
-              >
-                {selected === item.id
-                  ? "Fechar cadastro"
-                  : "Preparar acesso do cliente"}
-              </button>
-              {selected === item.id && (
+              {item.client_id ? (
+                <button
+                  className="btn primary"
+                  onClick={() => onOpen(item.client_id!)}
+                >
+                  Abrir cliente e preparar orçamento
+                </button>
+              ) : (
+                <button
+                  className="btn"
+                  onClick={() =>
+                    setSelected((current) =>
+                      current === item.id ? null : item.id,
+                    )
+                  }
+                >
+                  {selected === item.id
+                    ? "Fechar cadastro"
+                    : "Preparar acesso do cliente"}
+                </button>
+              )}
+              {!item.client_id && selected === item.id && (
                 <div className="request-form">
                   <h3>Cadastrar cliente</h3>
                   <p>
