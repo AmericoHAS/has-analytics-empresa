@@ -1,3 +1,4 @@
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -5,7 +6,6 @@ import {
   ChartNoAxesCombined,
   FlaskConical,
   Code2,
-  MessageCircle,
   BookOpen,
 } from "lucide-react";
 import { Header } from "@/components/Header";
@@ -49,7 +49,7 @@ export default async function Home() {
   return (
     <PublicExperience>
       <Header />
-      <main>
+      <main id="inicio">
         <section className="hero enterprise-hero">
           <div className="container hero-grid">
             <div className="hero-copy">
@@ -82,7 +82,7 @@ export default async function Home() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <MessageCircle size={18} />
+                  <WhatsAppIcon size={18} />
                   Falar com o especialista
                 </a>
               </div>
@@ -151,15 +151,13 @@ export default async function Home() {
           </div>
         </section>
         <ProjectExplorer />
-        <section className="section public-projects" data-reveal>
+        <section className="section public-projects" id="projetos" data-reveal>
           <div className="container">
             <div className="section-head">
               <div>
                 <span className="eyebrow">Conhecimento em movimento</span>
                 <h2>
-                  Projetos que dão
-                  <br />
-                  forma à nossa atuação.
+                  Pesquisa e soluções na prática.
                 </h2>
               </div>
               <Link className="text-link" href="/projetos">
@@ -167,9 +165,7 @@ export default async function Home() {
               </Link>
             </div>
             <p className="section-intro">
-              Pesquisa em saúde e ciências agrárias, modelagem estatística e
-              experiências digitais para educação e gestão. Conheça os
-              contextos, métodos e propostas de cada trabalho.
+              Uma seleção de pesquisas e soluções digitais. Abra um projeto para conhecer os detalhes.
             </p>
             <ProjectRail projects={projects} />
           </div>
@@ -242,7 +238,7 @@ export default async function Home() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Converse sobre sua demanda <MessageCircle size={18} />
+                Converse sobre sua demanda <WhatsAppIcon size={18} />
               </a>
             </div>
             <div>
@@ -298,7 +294,7 @@ export default async function Home() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Falar pelo WhatsApp <MessageCircle size={18} />
+                Falar pelo WhatsApp <WhatsAppIcon size={18} />
               </a>
             </div>
           </div>

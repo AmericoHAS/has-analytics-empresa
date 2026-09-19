@@ -1,5 +1,6 @@
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import SidebarBrand from "@/components/workspace/SidebarBrand";
-import { MessageCircle } from "lucide-react";
+
 import { publicContact } from "@/lib/public-site";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -33,7 +34,7 @@ export default async function ClientArea() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <MessageCircle size={20} />
+          <WhatsAppIcon size={20} />
           Falar pelo WhatsApp
         </a>
       </aside>

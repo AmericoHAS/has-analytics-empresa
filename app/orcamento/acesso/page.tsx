@@ -1,3 +1,4 @@
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import QuoteRequest from "@/components/QuoteRequest";
@@ -47,7 +48,7 @@ export default function QuotePage() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Prefere conversar primeiro? Fale pelo WhatsApp ↗
+              Prefere conversar primeiro? Fale pelo WhatsApp <WhatsAppIcon size={17} />
             </a>
           </div>
           <QuoteRequest />

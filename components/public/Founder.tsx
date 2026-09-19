@@ -41,9 +41,10 @@ export function Founder() {
             <em>Rigor na entrega.</em>
           </h2>
           <p>
-            Sou Haward Antunny. Na HAS Analytics, conecto estatística aplicada,
-            pesquisa e desenvolvimento digital para transformar perguntas em
-            caminhos de trabalho claros.
+            Sou Haward Antunny S. Américo, professor e pesquisador, licenciado
+            em Matemática, mestre em Bioestatística e doutorando em Bioestatística
+            pela Universidade Estadual de Maringá. Na HAS Analytics, essa formação
+            se traduz em cuidado com o método e clareza na interpretação dos dados.
           </p>
           <p>
             Essa atuação passa por dados experimentais, estudos em saúde e

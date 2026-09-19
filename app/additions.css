@@ -322,3 +322,43 @@
 /* One image, two presentations: square card and shallow detail banner. */
 .rail .project-image { height: auto; aspect-ratio: 1 / 1; }
 .project-metadata-fields select { width: 100%; min-width: 0; padding: 12px; border: 1px solid #c8dce7; border-radius: 10px; background: white; color: #0a2743; font: inherit; }
+
+/* Compact portfolio: fuller context stays on the detail page. */
+.public-projects.section { padding: 42px 0; scroll-margin-top: 100px; }
+.public-projects .section-head { align-items: center; gap: 16px; }
+.public-projects .section-head h2 { font-size: clamp(1.65rem, 3vw, 2.5rem); line-height: 1.15; margin: 8px 0; }
+.public-projects .section-intro { margin: 8px 0 16px; font-size: .95rem; }
+.compact-project-rail { gap: 20px; padding: 5px 2px 12px; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: #64b6d3 #e1edf2; }
+.compact-project-rail .project { flex: 0 0 300px; box-shadow: 0 6px 20px #031b3a0c; border-radius: 18px; transition: transform .25s, box-shadow .25s; }
+.compact-project-rail .project:hover { transform: translateY(-3px); box-shadow: 0 10px 24px #031b3a18; }
+.rail.compact-project-rail .project-image { height: 150px; aspect-ratio: auto; overflow: hidden; }
+.compact-project-rail .project-image img { object-fit: cover; transition: transform .45s; }
+.compact-project-rail .project:hover .project-image img { transform: scale(1.035); }
+.project-cover-placeholder { display: grid; place-items: center; height: 100%; background: linear-gradient(135deg,#082d49,#126585); color: white; }
+.compact-project-rail .project-body { padding: 16px 18px; display: flex; flex-direction: column; min-height: 205px; }
+.compact-project-rail .project-categories { margin: 0 0 10px; flex-wrap: nowrap; overflow: hidden; }
+.compact-project-rail .project-categories span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; font-size: .65rem; padding: 3px 8px; flex-shrink: 1; }
+.compact-project-rail h3 { margin: 0 0 8px; font-size: 1rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.compact-project-rail .project-summary { font-size: .82rem; line-height: 1.55; margin: 0 0 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.compact-project-rail .project-more { display: inline-flex; align-items: center; gap: 8px; margin-top: auto; font-size: .82rem; }
+.portfolio-controls { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.portfolio-hint { font-size: .75rem; color: #60758a; }
+.portfolio-progress { width: 80px; height: 3px; overflow: hidden; background: #cfdee8; border-radius: 9px; margin-left: auto; }
+.portfolio-progress span { display: block; width: 33.333%; height: 100%; background: #087dc1; }
+.portfolio-arrow { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #c8dce7; border-radius: 50%; background: white; color: #075a88; cursor: pointer; }
+.portfolio-arrow:disabled { opacity: .3; cursor: default; }
+.compact-project-rail:focus-visible, .portfolio-arrow:focus-visible { outline: 2px solid #087dc1; outline-offset: 3px; }
+.public-header .section-nav-link { position: relative; padding: 9px 0; }
+.public-header .section-nav-link::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; border-radius: 5px; background: white; transform: scaleX(0); transform-origin: left; transition: transform .28s ease; }
+.public-header .section-nav-link[aria-current]::after, .public-header .section-nav-link:hover::after { transform: scaleX(1); }
+.public-header .primary[aria-current] { box-shadow: 0 3px 0 white; }
+#servicos, #sobre, #orcamento, #inicio { scroll-margin-top: 95px; }
+html { scroll-behavior: smooth; }
+a[href*="wa.me"] svg { flex-shrink: 0; vertical-align: middle; }
+@media (max-width: 600px) { .compact-project-rail .project { flex-basis: min(280px, 80vw); } .public-projects .section-head { align-items: flex-start; } .public-projects .section-head .text-link { margin: 0; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .compact-project-rail .project, .compact-project-rail .project-image img, .public-header .section-nav-link::after { transition: none; } }
+.public-projects.section { padding: 28px 0; }
+.public-projects .section-head { margin-bottom: 8px; }
+.compact-project-rail .project { display: flex; flex-direction: column; }
+.rail.compact-project-rail .project-image { height: 130px; flex-shrink: 0; }
+.compact-project-rail .project-body { flex: 1; min-height: 195px; }

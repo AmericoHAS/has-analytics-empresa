@@ -1,4 +1,5 @@
 "use client";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2 } from "lucide-react";
@@ -79,7 +80,7 @@ export function BudgetForm({
           target="_blank"
           rel="noopener noreferrer"
         >
-          Continuar pelo WhatsApp <ArrowUpRight size={17} />
+          Continuar pelo WhatsApp <WhatsAppIcon size={17} />
         </a>
         <Link className="text-link" href="/">
           Voltar ao início
@@ -198,7 +199,7 @@ export function BudgetForm({
           target="_blank"
           rel="noopener noreferrer"
         >
-          Fale pelo WhatsApp
+          Fale pelo WhatsApp <WhatsAppIcon size={17} />
         </a>
       </p>
     </form>
