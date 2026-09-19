@@ -50,3 +50,9 @@ Execute `supabase/migrations/202609180002_project_presentation_and_delete.sql` n
 - Segundo gráfico com dispersão e curva média ilustrativa; boxplots com outliers. Login com logo ampliado e dimensionamento responsivo sem cortar conteúdo.
 
 Validação: 29 testes aprovados, integração PostgreSQL com RLS e preservação dos arquivos aprovada, build/TypeScript aprovados e lint sem erros (3 avisos de imagens já existentes). Login conferido sem rolagem em 1280×720, 375×667, 320×568 e 667×375. Nenhum projeto real foi excluído. Nenhuma migration foi aplicada no servidor e nenhum deploy foi realizado nesta edição.
+
+
+## Correção de cadastro — 19/09
+Se aparecer erro de coluna availability/schema cache, abra Supabase → SQL Editor → New query, cole todo o arquivo `supabase/migrations/202609190001_repair_project_metadata.sql` e clique Run. Esse SQL reúne os quatro campos do portfólio e solicita a atualização do cache da API, sem apagar dados. Aguarde alguns segundos e tente salvar novamente. Não recrie as tabelas nem execute schema.sql.
+
+Situação da publicação e Disponibilidade agora usam menus suspensos, com opção Não informar. Valores antigos personalizados são preservados como opções ao editar. A mesma capa aparece quadrada no card e como cabeçalho retangular de 140–240px nos detalhes, com recorte central automático; não precisa enviar duas imagens.

@@ -111,7 +111,9 @@ export async function createProjectAction(
 
     return {
       success: false,
-      message: `Não foi possível cadastrar o projeto: ${error.message}`,
+      message: ["PGRST204", "42703"].includes(error.code)
+        ? "O banco de dados precisa ser atualizado. Execute o arquivo 202609190001_repair_project_metadata.sql no Supabase → SQL Editor e tente salvar novamente."
+        : `Não foi possível cadastrar o projeto: ${error.message}`,
     };
   }
 
@@ -277,7 +279,9 @@ export async function updateProjectAction(
 
     return {
       success: false,
-      message: `Não foi possível atualizar o projeto: ${error.message}`,
+      message: ["PGRST204", "42703"].includes(error.code)
+        ? "O banco de dados precisa ser atualizado. Execute o arquivo 202609190001_repair_project_metadata.sql no Supabase → SQL Editor e tente salvar novamente."
+        : `Não foi possível atualizar o projeto: ${error.message}`,
     };
   }
 

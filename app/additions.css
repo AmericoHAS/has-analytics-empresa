@@ -290,7 +290,8 @@
 .project-more { display: block; width: fit-content; margin-left: auto; margin-right: 0; text-align: right; }
 .project-type { font-size: .78rem; font-weight: 800; color: #087dc1; text-transform: uppercase; letter-spacing: .06em; }
 .project-detail-cover { margin-bottom: 28px; overflow: hidden; border-radius: 16px; background: #e8f4f9; }
-.project-detail-cover img { display: block; width: 100%; height: auto; max-height: 480px; object-fit: contain; }
+.project-detail-cover { height: clamp(140px, 22vw, 240px); }
+.project-detail-cover img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .project-access { margin: 8px 0 16px; }
 .compact-login { min-height: 100dvh; grid-template-rows: minmax(min-content, 1fr); }
 .compact-login .auth-brand { padding: 18px 3vw; gap: 9px; }
@@ -317,3 +318,7 @@
   .compact-login .auth-form { gap: 6px; padding: 10px 20px; }
   .compact-login .auth-form h2 { font-size: 1.5rem; margin: 0; }
 }
+
+/* One image, two presentations: square card and shallow detail banner. */
+.rail .project-image { height: auto; aspect-ratio: 1 / 1; }
+.project-metadata-fields select { width: 100%; min-width: 0; padding: 12px; border: 1px solid #c8dce7; border-radius: 10px; background: white; color: #0a2743; font: inherit; }

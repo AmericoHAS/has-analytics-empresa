@@ -1,3 +1,12 @@
+const publicationOptions = ["Em desenvolvimento", "Em preparação", "Manuscrito em submissão", "Em avaliação", "Aceito para publicação", "Publicado", "Concluído"];
+const availabilityOptions = ["Disponível para acesso", "Acesso aberto", "Disponível após publicação", "Em breve", "Disponível mediante solicitação", "Acesso restrito", "Material confidencial"];
+function MetadataSelect({name, value, options}: {name: string; value: string; options: string[]}) {
+  return <select name={name} defaultValue={value}>
+    <option value="">Não informar</option>
+    {value && !options.includes(value) && <option value={value}>{value}</option>}
+    {options.map(option => <option key={option} value={option}>{option}</option>)}
+  </select>;
+}
 export type ProjectMetadata = {
   project_type?: string | null;
   publication_status?: string | null;
@@ -22,21 +31,11 @@ export default function ProjectMetadataFields({
       </label>
       <label>
         Situação da publicação
-        <input
-          name="publicationStatus"
-          maxLength={120}
-          defaultValue={project.publication_status ?? ""}
-          placeholder="Ex.: Manuscrito em submissão"
-        />
+        <MetadataSelect name="publicationStatus" value={project.publication_status ?? ""} options={publicationOptions} />
       </label>
       <label>
         Disponibilidade / observação do acesso
-        <input
-          name="availability"
-          maxLength={200}
-          defaultValue={project.availability ?? ""}
-          placeholder="Ex.: Disponível após publicação"
-        />
+        <MetadataSelect name="availability" value={project.availability ?? ""} options={availabilityOptions} />
       </label>
       <label>
         Pesquisadores e colaboradores
