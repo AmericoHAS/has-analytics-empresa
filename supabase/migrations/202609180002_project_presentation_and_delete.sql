@@ -2,6 +2,12 @@
 begin;
 alter table public.projects add column if not exists project_type text not null default '';
 
+-- Older installations may not have these optional links yet.
+alter table public.client_documents add column if not exists project_id uuid;
+alter table public.budget_requests add column if not exists project_id uuid;
+alter table public.client_documents alter column project_id drop not null;
+alter table public.budget_requests alter column project_id drop not null;
+
 -- Preserve documents, budgets and intake requests when an admin deletes a project.
 do $$ declare fk record; begin
   for fk in

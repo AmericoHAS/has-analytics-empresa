@@ -42,6 +42,12 @@ for (let pass = 0; pass < 2; pass++)
     .sort())
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
 console.log("PASS migrations apply and can be reapplied without losing data");
+// Reproduce older deployments with intake project links missing.
+await db.exec("alter table budget_requests drop column project_id cascade; alter table client_documents drop column project_id cascade;");
+await db.exec(readFileSync("supabase/ATUALIZAR-COMERCIAL.sql", "utf8"));
+await db.exec(readFileSync("supabase/ATUALIZAR-COMERCIAL.sql", "utf8"));
+console.log("PASS consolidated update repairs missing project links and is repeatable");
+
 await db.exec(
   `update project_private set admin_notes='INTERNAL ONLY' where project_id='${project}';`,
 );

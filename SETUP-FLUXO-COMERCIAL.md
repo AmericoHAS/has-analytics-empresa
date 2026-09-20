@@ -4,7 +4,7 @@
 
 No projeto Supabase usado pelo site, abra **SQL Editor → New query**. Copie TODO o conteúdo de **supabase/ATUALIZAR-COMERCIAL.sql**, cole e clique **Run**. Aguarde alguns segundos e recarregue o site.
 
-Esse arquivo reúne as atualizações do portfólio, a exclusão de projetos e o novo fluxo comercial. Pode ser executado novamente e não apaga projetos ou arquivos. Requer as migrations de workspace e solicitação de orçamento de setembro/2026 já instaladas. Não execute `schema.sql` novamente e não cole apenas o nome do arquivo no SQL Editor.
+Esse arquivo reúne as atualizações do portfólio, a exclusão de projetos e o novo fluxo comercial. Pode ser executado novamente e não apaga projetos ou arquivos. Requer as migrations de workspace de setembro/2026 já instaladas. Inclui a atualização de solicitação de orçamento e corrige vínculos project_id ausentes em instalações anteriores. Não execute `schema.sql` novamente e não cole apenas o nome do arquivo no SQL Editor.
 
 A mensagem sobre `202609180002` aparece porque a função de exclusão ainda não existe no banco remoto. Só atualizar o GitHub/Vercel não executa SQL. Após este passo: Admin → Clientes → selecione o cliente → Projetos e prazos → Editar → Excluir projeto → confirme. Documentos e orçamentos permanecem no cliente; o projeto, checklist e notas internas são removidos. Nenhum projeto real foi excluído durante o desenvolvimento.
 
