@@ -11,6 +11,7 @@ import {
   type PrivateProject,
 } from "@/lib/workspace/types";
 import Deadline from "./Deadline";
+import PresetField, { projectPresets } from "./PresetField";
 export default function Projects({
   clientId,
   projects,
@@ -40,8 +41,13 @@ export default function Projects({
         setEdit(undefined);
         onChange();
       }
-    } catch { setMessage("Não foi possível confirmar a exclusão. Atualize a lista antes de tentar novamente."); }
-    finally { setBusy(false); }
+    } catch {
+      setMessage(
+        "Não foi possível confirmar a exclusão. Atualize a lista antes de tentar novamente.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -87,7 +93,14 @@ export default function Projects({
           <h2>Projetos e análises</h2>
         </div>
         {admin && (
-          <button className="btn primary" disabled={busy} onClick={() => { setConfirmDelete(false); setEdit(null); }}>
+          <button
+            className="btn primary"
+            disabled={busy}
+            onClick={() => {
+              setConfirmDelete(false);
+              setEdit(null);
+            }}
+          >
             Novo projeto
           </button>
         )}
@@ -104,7 +117,11 @@ export default function Projects({
             <button
               className="btn"
               type="button"
-              disabled={busy} onClick={() => { setConfirmDelete(false); setEdit(undefined); }}
+              disabled={busy}
+              onClick={() => {
+                setConfirmDelete(false);
+                setEdit(undefined);
+              }}
             >
               Cancelar
             </button>
@@ -190,14 +207,44 @@ export default function Projects({
           </button>
           {admin && edit && (
             <div className="project-delete-panel">
-              {confirmDelete ? <>
-                <strong>Excluir “{edit.title}”?</strong>
-                <p>O projeto, o checklist e as notas internas serão excluídos definitivamente. Documentos, arquivos, orçamentos e solicitações serão preservados no cliente, sem vínculo com este projeto.</p>
-                <div className="row">
-                  <button type="button" className="btn" disabled={busy} onClick={() => setConfirmDelete(false)}>Manter projeto</button>
-                  <button type="button" className="btn danger" disabled={busy} onClick={remove}>{busy ? "Excluindo…" : "Confirmar exclusão"}</button>
-                </div>
-              </> : <button type="button" className="btn danger" disabled={busy} onClick={() => setConfirmDelete(true)}>Excluir projeto</button>}
+              {confirmDelete ? (
+                <>
+                  <strong>Excluir “{edit.title}”?</strong>
+                  <p>
+                    O projeto, o checklist e as notas internas serão excluídos
+                    definitivamente. Documentos, arquivos, orçamentos e
+                    solicitações serão preservados no cliente, sem vínculo com
+                    este projeto.
+                  </p>
+                  <div className="row">
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={busy}
+                      onClick={() => setConfirmDelete(false)}
+                    >
+                      Manter projeto
+                    </button>
+                    <button
+                      type="button"
+                      className="btn danger"
+                      disabled={busy}
+                      onClick={remove}
+                    >
+                      {busy ? "Excluindo…" : "Confirmar exclusão"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn danger"
+                  disabled={busy}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Excluir projeto
+                </button>
+              )}
             </div>
           )}
         </form>
@@ -215,12 +262,29 @@ export default function Projects({
               <h3>{p.title}</h3>
             </div>
             {admin && (
-              <button className="btn" disabled={busy} onClick={() => { setConfirmDelete(false); setEdit(p); }}>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => {
+                  setConfirmDelete(false);
+                  setEdit(p);
+                }}
+              >
                 Editar
               </button>
             )}
           </div>
-          <p className="preserve muted">{p.description}</p>
+          <p className="project-current-stage">
+            <span className="eyebrow">Etapa atual</span>
+            <strong>{p.stage}</strong>
+          </p>
+          <details className="project-scope">
+            <summary>Objetivo e entregáveis</summary>
+            <p className="preserve muted">{p.description}</p>
+            <p className="preserve">
+              {p.deliverables || "A definir após avaliação do escopo."}
+            </p>
+          </details>
           <div className="stage-track">
             {stages.map((s, i) => (
               <span
@@ -250,12 +314,6 @@ export default function Projects({
               label="Envio de dados pelo cliente"
             />
           </div>
-          <p>
-            <strong>Entregáveis</strong>
-          </p>
-          <p className="preserve">
-            {p.deliverables || "A definir após avaliação do escopo."}
-          </p>
           <ProjectDetails project={p} admin={admin} />
         </article>
       ))}
@@ -428,15 +486,21 @@ function ProjectDetails({
                           "Horas estimadas",
                         ][i]
                       }
-                      <input
-                        name={k}
-                        type={k === "estimated_hours" ? "number" : "text"}
-                        min="0"
-                        step="0.25"
-                        defaultValue={
-                          notes?.[k] ?? (k === "estimated_hours" ? 0 : "")
-                        }
-                      />
+                      {k === "estimated_hours" ? (
+                        <input
+                          name={k}
+                          type="number"
+                          min="0"
+                          step="0.25"
+                          defaultValue={notes?.[k] ?? 0}
+                        />
+                      ) : (
+                        <PresetField
+                          name={k}
+                          value={String(notes?.[k] ?? "")}
+                          options={projectPresets[k] ?? []}
+                        />
+                      )}
                     </label>
                   ))}
                 </div>

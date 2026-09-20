@@ -1,4 +1,5 @@
 "use client";
+import { intakeFields } from "@/lib/commercial/intake";
 import BudgetPlanningFields from "./BudgetPlanningFields";
 import CommercialDocuments from "@/components/workspace/CommercialDocuments";
 import { useCallback, useEffect, useState } from "react";
@@ -17,8 +18,9 @@ import {
 } from "@/app/admin/budget-actions";
 type Item = { description: string; quantity: number; unitPrice: number };
 type Budget = {
+  publication_partnership?: boolean;
   payment_terms?: string;
-  final_due_date?: string|null;
+  final_due_date?: string | null;
   id: string;
   budget_number: string;
   title: string;
@@ -39,6 +41,20 @@ export default function ClientBudgetManager({
   projects: { id: string; title: string }[];
   readOnly?: boolean;
 }) {
+  type Request = {
+    id: string;
+    project_id: string | null;
+    title: string;
+    description: string;
+    desired_date: string | null;
+    intake: Record<string, string>;
+  };
+  const [requests, setRequests] = useState<Request[]>([]),
+    [source, setSource] = useState<Request | null>(null),
+    [title, setTitle] = useState(""),
+    [description, setDescription] = useState(""),
+    [projectId, setProjectId] = useState(""),
+    [partnership, setPartnership] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>([]),
     [model, setModel] = useState<CommercialModel>(defaultModel),
     [modelReady, setModelReady] = useState(false),
@@ -64,6 +80,13 @@ export default function ClientBudgetManager({
     else setBudgets(data ?? []);
   }, [clientId]);
   useEffect(() => {
+    if (!readOnly)
+      supabase
+        .from("budget_requests")
+        .select("id,project_id,title,description,desired_date,intake")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .then(({ data }) => setRequests(data ?? []));
     supabase
       .from("client_budgets")
       .select("*")
@@ -103,7 +126,24 @@ export default function ClientBudgetManager({
       unitPrice: Number(i.unit_price),
     }));
   }
+  function applyRequest(r: Request | null) {
+    setSource(r);
+    setTitle(r?.title ?? model.title);
+    setDescription(
+      r
+        ? [
+            r.description,
+            ...intakeFields
+              .filter(([key]) => r.intake?.[key])
+              .map(([key, label]) => `${label}: ${r.intake[key]}`),
+          ].join("\n")
+        : "",
+    );
+    setProjectId(r?.project_id ?? "");
+  }
   function start() {
+    applyRequest(requests[0] ?? null);
+    setPartnership(false);
     setValidity(
       new Date(Date.now() + model.validityDays * 86400000)
         .toISOString()
@@ -119,6 +159,11 @@ export default function ClientBudgetManager({
     try {
       setItems(await itemRows(b.id));
       setEdit(b);
+      setSource(null);
+      setTitle(b.title);
+      setDescription(b.description);
+      setProjectId(b.project_id ?? "");
+      setPartnership(b.publication_partnership ?? false);
       setDiscount(Number(b.discount_percent));
       setOpen(true);
     } catch {
@@ -133,6 +178,7 @@ export default function ClientBudgetManager({
     f.set("budgetId", edit?.id ?? "");
     f.set("items", JSON.stringify(items));
     f.set("discountPercent", String(discount));
+    f.set("publicationPartnership", String(partnership));
     try {
       const result = await createBudgetAction(
         { success: false, message: "" },
@@ -156,13 +202,17 @@ export default function ClientBudgetManager({
       f.set("status", value);
       await updateBudgetStatusAction(f);
       await load();
-    } catch {
-      setMessage("Não foi possível atualizar o status.");
+    } catch (e) {
+      setMessage(
+        e instanceof Error ? e.message : "Não foi possível atualizar o status.",
+      );
     } finally {
       setBusy(false);
     }
   }
   const sum = totals(items, discount);
+  if (readOnly)
+    return <CommercialDocuments clientId={clientId} kind="orcamento" />;
   return (
     <div className="stack">
       <div className="workspace-header">
@@ -197,18 +247,51 @@ export default function ClientBudgetManager({
               Cancelar
             </button>
           </div>
+          <p className="workflow-notice">
+            1. Revise a demanda → 2. Confira os valores → 3. Salve e prepare o
+            PDF. Campos internos são opcionais.
+          </p>
+          {!edit && (
+            <label>
+              Preencher com a solicitação do cliente
+              <select
+                value={source?.id ?? ""}
+                onChange={(e) =>
+                  applyRequest(
+                    requests.find((r) => r.id === e.target.value) ?? null,
+                  )
+                }
+              >
+                <option value="">Orçamento sem solicitação</option>
+                {requests.map((r) => (
+                  <option value={r.id} key={r.id}>
+                    {r.title}
+                  </option>
+                ))}
+              </select>
+              <small>
+                Os dados são copiados para edição. A solicitação original
+                permanece preservada.
+              </small>
+            </label>
+          )}
           <div className="form-grid">
             <label>
               Título
               <input
                 name="title"
                 required
-                defaultValue={edit?.title ?? model.title}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
             </label>
             <label>
               Projeto
-              <select name="projectId" defaultValue={edit?.project_id ?? ""}>
+              <select
+                name="projectId"
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+              >
                 <option value="">Geral do cliente</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -238,11 +321,29 @@ export default function ClientBudgetManager({
               />
             </label>
           </div>
+          <label className="partnership-option">
+            <input
+              type="checkbox"
+              checked={partnership}
+              onChange={(e) => {
+                setPartnership(e.target.checked);
+                setDiscount(e.target.checked ? 30 : model.discount);
+              }}
+            />{" "}
+            Parceria em publicação — aplicar desconto de 30%
+          </label>
+          {partnership && (
+            <p className="muted">
+              Desconto editável acima. As condições da colaboração devem ser
+              acordadas; a parceria não garante autoria.
+            </p>
+          )}
           <label>
             Demanda e escopo
             <textarea
               name="description"
-              defaultValue={edit?.description ?? ""}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
             />
           </label>
           {!edit && (
@@ -415,15 +516,27 @@ export default function ClientBudgetManager({
           </div>
           <label>
             Observações e pagamento
-            <textarea
-              name="notes"
-              defaultValue={
-                edit?.notes ??
-                `${model.notes}\nForma de pagamento: ${model.payment}`
-              }
-            />
+            <textarea name="notes" defaultValue={edit?.notes ?? model.notes} />
           </label>
-          <BudgetPlanningFields clientId={clientId} budgetId={edit?.id} payment={edit?.payment_terms??model.payment} delivery={edit?.final_due_date??""} hours={hours} base={model.baseValue} additions={model.baseValue*Object.values(factors).filter(i=>i>=0).reduce((sum,i)=>sum+(model.coefficients[i]?.coefficient??0),0)} />
+          <BudgetPlanningFields
+            source={source}
+            key={edit?.id ?? source?.id ?? "planning"}
+            clientId={clientId}
+            budgetId={edit?.id}
+            payment={edit?.payment_terms ?? model.payment}
+            delivery={edit?.final_due_date ?? ""}
+            hours={hours}
+            base={model.baseValue}
+            additions={
+              model.baseValue *
+              Object.values(factors)
+                .filter((i) => i >= 0)
+                .reduce(
+                  (sum, i) => sum + (model.coefficients[i]?.coefficient ?? 0),
+                  0,
+                )
+            }
+          />
           <div className="total-card">
             <span>
               Subtotal {money(sum.subtotal)} · Desconto {discount}%
@@ -454,6 +567,13 @@ export default function ClientBudgetManager({
               <span className="tag">{b.status}</span>
             </div>
           </div>
+          {!readOnly && b.status === "rascunho" && (
+            <p className="workflow-notice">
+              Próximo passo: prepare o PDF abaixo, confira e clique em
+              Disponibilizar ao cliente. Salvar o orçamento não envia o
+              documento.
+            </p>
+          )}
           <div className="actions">
             <button
               className="btn"
@@ -490,7 +610,9 @@ export default function ClientBudgetManager({
                     "expirado",
                     "cancelado",
                   ].map((s) => (
-                    <option key={s}>{s}</option>
+                    <option key={s} disabled={s === "enviado"}>
+                      {s}
+                    </option>
                   ))}
                 </select>
                 <button
@@ -519,7 +641,15 @@ export default function ClientBudgetManager({
           </div>
         </article>
       ))}
-      <CommercialDocuments clientId={clientId} admin={!readOnly} kind="orcamento" onChange={load} />
+      <CommercialDocuments
+        key={budgets
+          .map((b) => b.id + ":" + b.total + ":" + b.status)
+          .join("|")}
+        clientId={clientId}
+        admin={!readOnly}
+        kind="orcamento"
+        onChange={load}
+      />
       {detail && (
         <div className="workspace-card stack">
           <div className="row">

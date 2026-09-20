@@ -6,8 +6,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import ClientWorkspace from "@/components/workspace/ClientWorkspace";
+import ClientProfile from "@/components/workspace/ClientProfile";
 import SignOut from "@/components/workspace/SignOut";
-export default async function ClientArea() {
+export default async function ClientArea({
+  searchParams,
+}: {
+  searchParams: Promise<{ secao?: string }>;
+}) {
+  const section = (await searchParams).secao;
   const db = await createClient();
   const {
     data: { user },
@@ -23,11 +29,23 @@ export default async function ClientArea() {
       <aside>
         <SidebarBrand />
         <small>SEU ESPAÇO DE PESQUISA</small>
-        <Link className="active" href="/area-cliente">
+        <Link
+          className={section !== "perfil" ? "active" : ""}
+          href="/area-cliente"
+        >
           Meu acompanhamento
         </Link>
         <Link href="/orcamento/acesso">Solicitar novo orçamento</Link>
-        <SignOut />
+        <div className="sidebar-account">
+          <Link
+            className={section === "perfil" ? "active" : ""}
+            href="/area-cliente?secao=perfil"
+          >
+            Meu perfil e cadastro
+          </Link>
+          <small>{data?.full_name ?? user.email}</small>
+          <SignOut />
+        </div>
         <a
           className="sidebar-whatsapp"
           href={publicContact.whatsapp}
@@ -49,7 +67,11 @@ export default async function ClientArea() {
           </p>
           <span className="secure-badge">Acesso privado · HAS Analytics</span>
         </header>
-        <ClientWorkspace clientId={user.id} />
+        {section === "perfil" ? (
+          <ClientProfile clientId={user.id} expanded />
+        ) : (
+          <ClientWorkspace clientId={user.id} />
+        )}
       </section>
     </main>
   );

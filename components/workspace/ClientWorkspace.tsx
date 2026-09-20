@@ -1,4 +1,6 @@
 "use client";
+import WorkflowOverview from "./WorkflowOverview";
+import Payments from "./Payments";
 import ClientProfile from "./ClientProfile";
 import CommercialDocuments from "./CommercialDocuments";
 import { useCallback, useEffect, useState } from "react";
@@ -57,48 +59,60 @@ export default function ClientWorkspace({
   }, [load, clientId]);
   return (
     <div className="stack">
-      <ClientProfile clientId={clientId} admin={admin} expanded={tab==="cadastro"} />
-      <div className="summary">
-        <article>
-          <small>ANÁLISES EM CURSO</small>
-          <strong>
-            {
-              projects.filter(
-                (p) => !["concluido", "cancelado"].includes(p.status),
-              ).length
-            }
-          </strong>
-          <span>Projetos em acompanhamento</span>
-        </article>
-        <article>
-          <small>ENTREGAS CONCLUÍDAS</small>
-          <strong>
-            {projects.filter((p) => p.status === "concluido").length}
-          </strong>
-          <span>Conhecimento pronto para avançar</span>
-        </article>
-        <article>
-          <small>ATENÇÃO AOS PRAZOS</small>
-          <strong>
-            {
-              projects.filter((p) =>
-                [
-                  deadline(p.due_date, p.start_date, p.status),
-                  deadline(p.client_due_date, p.start_date, p.status),
-                ].some((d) => ["danger", "warning"].includes(d.tone)),
-              ).length
-            }
-          </strong>
-          <span>Próximos três dias ou em atraso</span>
-        </article>
-      </div>
+      {admin && tab === "cadastro" && (
+        <ClientProfile clientId={clientId} admin expanded />
+      )}
+      <WorkflowOverview
+        key={tab}
+        clientId={clientId}
+        admin={admin}
+        onNavigate={setTab}
+      />
+      <details className="workspace-statistics">
+        <summary>Resumo de análises e prazos</summary>
+        <div className="summary workspace-summary">
+          <article>
+            <small>ANÁLISES EM CURSO</small>
+            <strong>
+              {
+                projects.filter(
+                  (p) => !["concluido", "cancelado"].includes(p.status),
+                ).length
+              }
+            </strong>
+            <span>Projetos em acompanhamento</span>
+          </article>
+          <article>
+            <small>ENTREGAS CONCLUÍDAS</small>
+            <strong>
+              {projects.filter((p) => p.status === "concluido").length}
+            </strong>
+            <span>Conhecimento pronto para avançar</span>
+          </article>
+          <article>
+            <small>ATENÇÃO AOS PRAZOS</small>
+            <strong>
+              {
+                projects.filter((p) =>
+                  [
+                    deadline(p.due_date, p.start_date, p.status),
+                    deadline(p.client_due_date, p.start_date, p.status),
+                  ].some((d) => ["danger", "warning"].includes(d.tone)),
+                ).length
+              }
+            </strong>
+            <span>Próximos três dias ou em atraso</span>
+          </article>
+        </div>
+      </details>
       <nav className="workspace-tabs" aria-label="Seções do cliente">
         {[
           ["projetos", "Projetos e prazos"],
-          ["documentos", "Documentos"],
+          ["documentos", "Dados e arquivos"],
+          ["pagamentos", "Pagamento"],
           ["orcamentos", "Orçamentos e aprovações"],
           ["contratos", "Contratos e assinaturas"],
-          ["cadastro", "Cadastro"],
+          ...(admin ? [["cadastro", "Cadastro do cliente"]] : []),
           ["avisos", "Avisos"],
         ].map(([k, label]) => (
           <button
@@ -134,7 +148,16 @@ export default function ClientWorkspace({
               readOnly={!admin}
             />
           )}{" "}
-          {tab === "contratos" && <CommercialDocuments clientId={clientId} admin={admin} kind="contrato" />}
+          {tab === "pagamentos" && (
+            <Payments clientId={clientId} admin={admin} />
+          )}
+          {tab === "contratos" && (
+            <CommercialDocuments
+              clientId={clientId}
+              admin={admin}
+              kind="contrato"
+            />
+          )}
           {tab === "avisos" && (
             <Notifications
               clientId={admin ? clientId : undefined}

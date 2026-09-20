@@ -1,3 +1,7 @@
+# Fluxo atualizado em 20/09/2026
+
+Para pagamento, assinatura de propostas e nova organização das telas, siga **SETUP-PAGAMENTO-E-EXPERIENCIA.md**. O arquivo ATUALIZAR-COMERCIAL.sql inclui essas alterações.
+
 # Ativação do fluxo comercial — 19/09/2026
 
 ## 1. Supabase: resolver a exclusão e habilitar os novos módulos
