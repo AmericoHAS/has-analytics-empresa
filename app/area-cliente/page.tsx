@@ -7,13 +7,15 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import ClientWorkspace from "@/components/workspace/ClientWorkspace";
 import ClientProfile from "@/components/workspace/ClientProfile";
-import SignOut from "@/components/workspace/SignOut";
+import AccountAccess from "@/components/workspace/AccountAccess";
+import PendingActions from "@/components/workspace/PendingActions";
 export default async function ClientArea({
   searchParams,
 }: {
-  searchParams: Promise<{ secao?: string }>;
+  searchParams: Promise<{ secao?: string; aba?: string }>;
 }) {
-  const section = (await searchParams).secao;
+  const params = await searchParams;
+  const section = params.secao;
   const db = await createClient();
   const {
     data: { user },
@@ -37,23 +39,20 @@ export default async function ClientArea({
         </Link>
         <Link href="/orcamento/acesso">Solicitar novo orçamento</Link>
         <div className="sidebar-account">
-          <Link
-            className={section === "perfil" ? "active" : ""}
-            href="/area-cliente?secao=perfil"
-          >
-            Meu perfil e cadastro
-          </Link>
-          <small>{data?.full_name ?? user.email}</small>
-          <SignOut />
+          <AccountAccess
+            clientId={user.id}
+            name={data?.full_name ?? "Meu perfil"}
+          />
         </div>
         <a
           className="sidebar-whatsapp"
+          aria-label="Falar com a HAS pelo WhatsApp"
+          title="WhatsApp"
           href={publicContact.whatsapp}
           target="_blank"
           rel="noopener noreferrer"
         >
           <WhatsAppIcon size={20} />
-          Falar pelo WhatsApp
         </a>
       </aside>
       <section>
@@ -65,12 +64,33 @@ export default async function ClientArea({
             <br />
             Arquivos, resultados e próximos passos em um único lugar.
           </p>
+          <PendingActions clientId={user.id} />
           <span className="secure-badge">Acesso privado · HAS Analytics</span>
         </header>
         {section === "perfil" ? (
-          <ClientProfile clientId={user.id} expanded />
+          <>
+            <AccountAccess
+              clientId={user.id}
+              name={data?.full_name ?? "Meu perfil"}
+              settings
+            />
+            <ClientProfile clientId={user.id} expanded />
+          </>
         ) : (
-          <ClientWorkspace clientId={user.id} />
+          <ClientWorkspace
+            clientId={user.id}
+            initialTab={
+              [
+                "projetos",
+                "contratos",
+                "documentos",
+                "orcamentos",
+                "avisos",
+              ].includes(params.aba ?? "")
+                ? params.aba
+                : "projetos"
+            }
+          />
         )}
       </section>
     </main>

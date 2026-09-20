@@ -112,7 +112,7 @@ export async function updateBudgetStatusAction(form: FormData) {
 export async function deleteBudgetAction(form: FormData) {
   const db = await admin();
   const id = z.string().uuid().parse(form.get("budgetId"));
-  const { error } = await db.from("client_budgets").delete().eq("id", id);
+  const { error } = await db.rpc("archive_client_budget", { p_id: id });
   if (error) throw Error(error.message);
   revalidatePath("/admin");
 }

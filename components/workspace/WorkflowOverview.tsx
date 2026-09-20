@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLifecycle } from "./useLifecycle";
 import { supabase } from "@/lib/supabase";
 export default function WorkflowOverview({
   clientId,
@@ -11,6 +12,7 @@ export default function WorkflowOverview({
   admin: boolean;
   onNavigate: (tab: string) => void;
 }) {
+  const lifecycle = useLifecycle(clientId);
   const [counts, setCounts] = useState({
       proposals: 0,
       signatures: 0,
@@ -99,6 +101,22 @@ export default function WorkflowOverview({
         ))}
       </div>
       <div className="attention-row">
+        {admin &&
+          lifecycle
+            .filter((p) => p.state.label === "Aguardando orçamento")
+            .map((p) => (
+              <button key={p.id} onClick={() => onNavigate("orcamentos")}>
+                Aguardando orçamento · {p.title}
+              </button>
+            ))}
+        {admin &&
+          lifecycle
+            .filter((p) => p.facts.proposalSigned && !p.facts.contractSent)
+            .map((p) => (
+              <button key={p.id} onClick={() => onNavigate("contratos")}>
+                Orçamento aprovado · preparar contrato · {p.title}
+              </button>
+            ))}
         {!profile &&
           (admin ? (
             <button onClick={() => onNavigate("cadastro")}>

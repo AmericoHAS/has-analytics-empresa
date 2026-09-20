@@ -10,7 +10,7 @@ import {
   type Task,
   type PrivateProject,
 } from "@/lib/workspace/types";
-import Deadline from "./Deadline";
+import ProjectLifecycle from "./ProjectLifecycle";
 import PresetField, { projectPresets } from "./PresetField";
 export default function Projects({
   clientId,
@@ -105,7 +105,7 @@ export default function Projects({
           </button>
         )}
       </div>
-      <p role="status">{message}</p>
+      {message && <p role="status">{message}</p>}
       {edit !== undefined && (
         <form
           className="workspace-card stack"
@@ -254,69 +254,41 @@ export default function Projects({
           Nenhuma análise cadastrada para este cliente.
         </div>
       )}
-      {projects.map((p) => (
-        <article className="workspace-card project-card" key={p.id}>
-          <div className="row">
-            <div>
-              <span className="tag">{statusLabels[p.status] ?? p.status}</span>
-              <h3>{p.title}</h3>
+      {projects
+        .filter((p) => edit === undefined || p.id !== edit?.id)
+        .map((p) => (
+          <article className="workspace-card project-card" key={p.id}>
+            <div className="row">
+              <div>
+                <span className="tag">
+                  {statusLabels[p.status] ?? p.status}
+                </span>
+                <h3>{p.title}</h3>
+              </div>
+              {admin && (
+                <button
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => {
+                    setConfirmDelete(false);
+                    setEdit(p);
+                  }}
+                >
+                  Editar
+                </button>
+              )}
             </div>
-            {admin && (
-              <button
-                className="btn"
-                disabled={busy}
-                onClick={() => {
-                  setConfirmDelete(false);
-                  setEdit(p);
-                }}
-              >
-                Editar
-              </button>
-            )}
-          </div>
-          <p className="project-current-stage">
-            <span className="eyebrow">Etapa atual</span>
-            <strong>{p.stage}</strong>
-          </p>
-          <details className="project-scope">
-            <summary>Objetivo e entregáveis</summary>
-            <p className="preserve muted">{p.description}</p>
-            <p className="preserve">
-              {p.deliverables || "A definir após avaliação do escopo."}
-            </p>
-          </details>
-          <div className="stage-track">
-            {stages.map((s, i) => (
-              <span
-                key={s}
-                className={i <= stages.indexOf(p.stage) ? "reached" : ""}
-              >
-                <b>{i + 1}</b>
-                {s}
-              </span>
-            ))}
-          </div>
-          <div className="row">
-            <strong>Progresso da análise</strong>
-            <strong>{p.progress}%</strong>
-          </div>
-          <progress
-            max={100}
-            value={p.progress}
-            aria-label="Progresso da análise"
-          />
-          <div className="form-grid">
-            <Deadline start={p.start_date} due={p.due_date} status={p.status} />
-            <Deadline
-              start={p.start_date}
-              due={p.client_due_date}
-              status={p.status}
-              label="Envio de dados pelo cliente"
-            />
-          </div>
-          <ProjectDetails project={p} admin={admin} />
-        </article>
-      ))}
+            <details className="project-scope">
+              <summary>Objetivo e entregáveis</summary>
+              <p className="preserve muted">{p.description}</p>
+              <p className="preserve">
+                {p.deliverables || "A definir após avaliação do escopo."}
+              </p>
+            </details>
+            <ProjectLifecycle project={p} admin={admin} />
+            {admin && <ProjectDetails project={p} admin={admin} />}
+          </article>
+        ))}
     </div>
   );
 }

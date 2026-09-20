@@ -18,12 +18,16 @@ export async function GET(request: Request) {
     const { error: enqueueError } = await db.rpc(
       "enqueue_deadline_notifications",
     );
+    const { error: meetingError } = await db.rpc(
+      "enqueue_consultation_reminders",
+    );
+    if (meetingError) throw Error("Falha ao gerar lembretes de consultoria.");
     if (enqueueError) throw Error("Falha ao gerar avisos de prazo.");
     if (process.env.NOTIFICATIONS_ENABLED !== "true")
       return NextResponse.json({ email: "disabled", inApp: "updated" });
     const apiKey = process.env.RESEND_API_KEY,
-      from = process.env.NOTIFICATION_FROM,
-      site = process.env.SITE_URL;
+      from = process.env.NOTIFICATION_FROM || process.env.RESEND_FROM_EMAIL,
+      site = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
     if (!apiKey || !from || !site || !site.startsWith("https://"))
       return NextResponse.json(
         { error: "Configure Resend, remetente e SITE_URL HTTPS." },
@@ -69,6 +73,7 @@ export async function GET(request: Request) {
           headers: {
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
+            "User-Agent": "HAS-Analytics/1.0",
             "Idempotency-Key": `has-notice-${row.id}`,
           },
           body: JSON.stringify({
@@ -110,11 +115,131 @@ export async function GET(request: Request) {
       }
       await new Promise((resolve) => setTimeout(resolve, 550));
     }
-    return NextResponse.json({ sent, failed });
+    const whatsapp = await dispatchWhatsApp(db, started);
+    return NextResponse.json({ sent, failed, whatsapp });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Erro no processamento." },
       { status: 500 },
     );
   }
+}
+
+// Supabase notification webhook uses the same secret; payload is never trusted.
+export async function POST(request: Request) {
+  return GET(request);
+}
+
+async function dispatchWhatsApp(
+  db: ReturnType<typeof createAdminClient>,
+  started: number,
+) {
+  if (process.env.WHATSAPP_ENABLED !== "true") return "disabled";
+  const token = process.env.WHATSAPP_API_TOKEN,
+    phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID,
+    version = process.env.WHATSAPP_API_VERSION,
+    template = process.env.WHATSAPP_TEMPLATE_NAME;
+  if (
+    !token ||
+    !phoneId ||
+    !/^\d+$/.test(phoneId) ||
+    !version ||
+    !/^v\d+\.\d+$/.test(version) ||
+    !template
+  )
+    return "configuration_required";
+  let sent = 0;
+  for (let i = 0; i < 10 && Date.now() - started < 50000; i++) {
+    const { data, error } = await db.rpc("claim_notification_whatsapp");
+    if (error) return "queue_unavailable";
+    const row = data?.[0];
+    if (!row) break;
+    try {
+      const [{ data: profile }, { data: pref }] = await Promise.all([
+        db.from("profiles").select("role").eq("id", row.recipient_id).single(),
+        db
+          .from("account_preferences")
+          .select("whatsapp_opt_in,whatsapp_number")
+          .eq("client_id", row.recipient_id)
+          .maybeSingle(),
+      ]);
+      const number =
+        profile?.role === "admin"
+          ? process.env.ADMIN_WHATSAPP_NUMBER
+          : pref?.whatsapp_opt_in
+            ? pref.whatsapp_number
+            : undefined;
+      if (!number || !/^\+[1-9]\d{7,14}$/.test(number)) {
+        await db
+          .from("notifications")
+          .update({ whatsapp_status: "skipped" })
+          .eq("id", row.id);
+        continue;
+      }
+      const site = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+      if (!site?.startsWith("https://"))
+        throw Error("Configure SITE_URL HTTPS.");
+      const response = await fetch(
+        `https://graph.facebook.com/${version}/${phoneId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            to: number.slice(1),
+            type: "template",
+            template: {
+              name: template,
+              language: {
+                code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || "pt_BR",
+              },
+              components: [
+                {
+                  type: "body",
+                  parameters: [
+                    { type: "text", text: row.title.slice(0, 160) },
+                    {
+                      type: "text",
+                      text: new URL(
+                        profile?.role === "admin" ? "/admin" : "/area-cliente",
+                        site,
+                      ).toString(),
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+          signal: AbortSignal.timeout(7000),
+        },
+      );
+      if (!response.ok)
+        throw Error(`WhatsApp retornou HTTP ${response.status}.`);
+      await db
+        .from("notifications")
+        .update({
+          whatsapp_status: "sent",
+          whatsapp_sent_at: new Date().toISOString(),
+          whatsapp_error: null,
+        })
+        .eq("id", row.id);
+      sent++;
+    } catch (e) {
+      await db
+        .from("notifications")
+        .update({
+          whatsapp_status: "failed",
+          whatsapp_error:
+            e instanceof Error
+              ? e.message
+              : "Falha no WhatsApp. Confira o provedor antes de reenviar.",
+        })
+        .eq("id", row.id);
+    }
+  }
+  // Do not auto-retry ambiguous Meta responses: unlike email, this endpoint has no idempotency key.
+  return sent;
 }

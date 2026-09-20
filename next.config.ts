@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  outputFileTracingIncludes: { "/*": ["./public/logo-has.analytics.png"] },
+  serverExternalPackages: ["@sparticuz/chromium", "playwright-core"],
+  outputFileTracingIncludes: {
+    "/*": [
+      "./templates/has/**/*",
+      "./node_modules/@sparticuz/chromium/bin/**/*",
+      "./node_modules/docx-preview/dist/docx-preview.min.js",
+      "./node_modules/jszip/dist/jszip.min.js",
+    ],
+  },
   turbopack: { root: process.cwd() },
   experimental: {
     serverActions: {

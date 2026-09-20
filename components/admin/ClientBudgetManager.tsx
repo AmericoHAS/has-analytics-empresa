@@ -75,6 +75,7 @@ export default function ClientBudgetManager({
       .from("client_budgets")
       .select("*")
       .eq("client_id", clientId)
+      .is("archived_at", null)
       .order("created_at", { ascending: false });
     if (error) setMessage("Não foi possível carregar os orçamentos.");
     else setBudgets(data ?? []);
@@ -91,6 +92,7 @@ export default function ClientBudgetManager({
       .from("client_budgets")
       .select("*")
       .eq("client_id", clientId)
+      .is("archived_at", null)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (error) setMessage("Não foi possível carregar os orçamentos.");
@@ -619,7 +621,11 @@ export default function ClientBudgetManager({
                   className="btn danger-text"
                   disabled={busy}
                   onClick={async () => {
-                    if (!confirm("Excluir este orçamento e seus itens?"))
+                    if (
+                      !confirm(
+                        "Arquivar este orçamento? Os documentos já gerados serão preservados.",
+                      )
+                    )
                       return;
                     setBusy(true);
                     try {
@@ -627,14 +633,18 @@ export default function ClientBudgetManager({
                       f.set("budgetId", b.id);
                       await deleteBudgetAction(f);
                       await load();
-                    } catch {
-                      setMessage("Não foi possível excluir.");
+                    } catch (e) {
+                      setMessage(
+                        e instanceof Error
+                          ? e.message
+                          : "Não foi possível arquivar.",
+                      );
                     } finally {
                       setBusy(false);
                     }
                   }}
                 >
-                  Excluir
+                  Arquivar
                 </button>
               </>
             )}
@@ -642,7 +652,7 @@ export default function ClientBudgetManager({
         </article>
       ))}
       <CommercialDocuments
-        key={budgets
+        refreshKey={budgets
           .map((b) => b.id + ":" + b.total + ":" + b.status)
           .join("|")}
         clientId={clientId}

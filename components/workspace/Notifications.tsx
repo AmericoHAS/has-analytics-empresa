@@ -9,6 +9,8 @@ type Notice = {
   read_at: string | null;
   created_at: string;
   email_status: string;
+  whatsapp_status: string;
+  whatsapp_error: string | null;
   last_error: string | null;
 };
 export default function Notifications({
@@ -24,7 +26,7 @@ export default function Notifications({
     let q = supabase
       .from("notifications")
       .select(
-        "id,recipient_id,title,body,read_at,created_at,email_status,last_error",
+        "id,recipient_id,title,body,read_at,created_at,email_status,last_error,whatsapp_status,whatsapp_error",
       )
       .order("created_at", { ascending: false })
       .limit(100);
@@ -37,7 +39,7 @@ export default function Notifications({
     let q = supabase
       .from("notifications")
       .select(
-        "id,recipient_id,title,body,read_at,created_at,email_status,last_error",
+        "id,recipient_id,title,body,read_at,created_at,email_status,last_error,whatsapp_status,whatsapp_error",
       )
       .order("created_at", { ascending: false })
       .limit(100);
@@ -63,9 +65,47 @@ export default function Notifications({
       {admin && (
         <p className="muted">
           Os avisos ficam registrados aqui. O envio por e-mail depende da
-          ativação do Resend e do agendamento. WhatsApp preparado para
-          integração oficial; ainda não envia mensagens.
+          ativação do Resend e do agendamento. WhatsApp disponível quando a
+          integração oficial e as preferências do destinatário estiverem
+          ativadas.
         </p>
+      )}
+      {admin && clientId && (
+        <details className="workspace-card">
+          <summary>Criar aviso para este cliente</summary>
+          <form
+            className="stack"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const form = e.currentTarget;
+              const f = new FormData(form);
+              const { error } = await supabase.rpc("create_client_notice", {
+                p_client: clientId,
+                p_title: f.get("title"),
+                p_body: f.get("body"),
+              });
+              setMessage(
+                error
+                  ? error.message
+                  : "Aviso registrado no site e na fila de e-mail.",
+              );
+              if (!error) {
+                form.reset();
+                await load();
+              }
+            }}
+          >
+            <label>
+              Título
+              <input name="title" required minLength={3} maxLength={160} />
+            </label>
+            <label>
+              Mensagem
+              <textarea name="body" required maxLength={4000} />
+            </label>
+            <button className="btn">Enviar aviso</button>
+          </form>
+        </details>
       )}
       <p role="status">{message}</p>
       {!rows.length && (
@@ -78,9 +118,12 @@ export default function Notifications({
           <p>{n.body}</p>
           <small>
             {new Date(n.created_at).toLocaleString("pt-BR")}
-            {admin ? ` · E-mail: ${n.email_status}` : ""}
+            {admin
+              ? ` · E-mail: ${n.email_status === "sent" ? "aceito pelo provedor" : n.email_status} · WhatsApp: ${n.whatsapp_status ?? "não configurado"}`
+              : ""}
           </small>
           {admin && n.last_error && <p>{n.last_error}</p>}
+          {admin && n.whatsapp_error && <p>{n.whatsapp_error}</p>}
           {!n.read_at && (
             <button
               className="btn"

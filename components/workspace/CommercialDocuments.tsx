@@ -5,6 +5,7 @@ import { type PaymentQuote } from "@/lib/commercial/payments";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
+  registerProviderSignature,
   saveDocumentTemplate,
   generateCommercialDocument,
   commercialDownload,
@@ -57,11 +58,13 @@ export default function CommercialDocuments({
   admin = false,
   kind,
   onChange,
+  refreshKey,
 }: {
   clientId: string;
   admin?: boolean;
   kind: "orcamento" | "contrato";
   onChange?: () => void;
+  refreshKey?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [history, setHistory] = useState(false);
@@ -119,7 +122,7 @@ export default function CommercialDocuments({
       supabase
         .from("document_templates")
         .select(
-          "body,provider_name,provider_tax_id,provider_address,provider_contact",
+          "body:native_body,provider_name,provider_tax_id,provider_address,provider_contact",
         )
         .eq("kind", kind)
         .single()
@@ -135,6 +138,10 @@ export default function CommercialDocuments({
         });
     return () => clearTimeout(timer);
   }, [load, admin, kind]);
+  useEffect(() => {
+    const t = setTimeout(() => void load(), 0);
+    return () => clearTimeout(t);
+  }, [load, refreshKey]);
   async function run(
     action: () => Promise<{ success: boolean; message: string }>,
   ) {
@@ -147,6 +154,7 @@ export default function CommercialDocuments({
         setConfirm(null);
         setEditor(false);
         await load();
+        window.dispatchEvent(new Event("has-workflow-updated"));
         onChange?.();
       }
     } catch {
@@ -309,7 +317,7 @@ export default function CommercialDocuments({
                 condições específicas deste documento.
               </p>
               <label>
-                Texto e condições desta versão
+                Condições adicionais desta versão (opcional)
                 <textarea
                   name="body"
                   value={body}
@@ -317,6 +325,37 @@ export default function CommercialDocuments({
                   maxLength={20000}
                 />
               </label>
+              {kind === "contrato" && (
+                <div className="form-grid">
+                  <label>
+                    Quantidade de revisões incluídas
+                    <input
+                      name="revisions"
+                      defaultValue="1"
+                      required
+                      maxLength={100}
+                    />
+                  </label>
+                  <label>
+                    Cidade / foro conforme acordo
+                    <input
+                      name="forumCity"
+                      defaultValue="Maringá — PR"
+                      required
+                      maxLength={200}
+                    />
+                  </label>
+                  <label>
+                    Link da cobrança no Mercado Pago (se cartão)
+                    <input name="paymentLink" type="url" pattern="https://.*" />
+                  </label>
+                </div>
+              )}
+              <p className="muted">
+                O documento usa o modelo Word original da HAS, com sua
+                identidade e cláusulas. O texto acima será acrescentado ao
+                modelo. Confira todas as condições antes de assinar.
+              </p>
               <button className="btn primary" disabled={busy}>
                 {busy ? "Gerando…" : "Gerar PDF e Word em rascunho"}
               </button>
@@ -420,6 +459,62 @@ export default function CommercialDocuments({
                   histórico; solicite uma versão atualizada antes de aprovar.
                 </p>
               )}
+              {admin && kind === "contrato" && d.status === "rascunho" && (
+                <form
+                  className="workspace-card stack"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const file = new FormData(e.currentTarget).get(
+                      "providerPdf",
+                    ) as File;
+                    setBusy(true);
+                    let path = "";
+                    try {
+                      if (
+                        !file ||
+                        file.size > 20 * 1024 * 1024 ||
+                        new TextDecoder().decode(
+                          await file.slice(0, 5).arrayBuffer(),
+                        ) !== "%PDF-"
+                      )
+                        throw Error("Envie um PDF válido de até 20 MB.");
+                      path = `${clientId}/${d.id}/provider-${crypto.randomUUID()}.pdf`;
+                      const { error } = await supabase.storage
+                        .from("commercial-documents")
+                        .upload(path, file, { contentType: "application/pdf" });
+                      if (error) throw Error("Falha ao enviar PDF.");
+                      const r = await registerProviderSignature(d.id, path);
+                      if (!r.success) throw Error(r.message);
+                      path = "";
+                      setMessage(r.message);
+                      await load();
+                    } catch (e) {
+                      if (path)
+                        await supabase.storage
+                          .from("commercial-documents")
+                          .remove([path]);
+                      setMessage(
+                        e instanceof Error ? e.message : "Falha ao salvar.",
+                      );
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  <label>
+                    Contrato já assinado pela HAS
+                    <input
+                      name="providerPdf"
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      required
+                    />
+                  </label>
+                  <button className="btn" disabled={busy}>
+                    Registrar PDF assinado pela HAS
+                  </button>
+                </form>
+              )}
               <div className="commercial-document-actions">
                 <button
                   className="btn"
@@ -467,7 +562,8 @@ export default function CommercialDocuments({
                 {!admin &&
                   d.status === "enviado" &&
                   !stale &&
-                  kind === "orcamento" && d.payment_option &&
+                  kind === "orcamento" &&
+                  d.payment_option &&
                   choices[d.budget_id] !== d.id && (
                     <button
                       className="btn primary"
@@ -654,7 +750,8 @@ export default function CommercialDocuments({
                           e.preventDefault();
                           const f = new FormData(e.currentTarget),
                             file = f.get("signed") as File;
-                          let path = "";
+                          let path = "",
+                            receiptPath = "";
                           setBusy(true);
                           try {
                             if (
@@ -676,15 +773,47 @@ export default function CommercialDocuments({
                               });
                             if (error)
                               throw Error("Não foi possível enviar o PDF.");
+                            if (kind === "contrato") {
+                              const receipt = f.get("receipt") as File;
+                              const ext = receipt?.name
+                                .split(".")
+                                .pop()
+                                ?.toLowerCase();
+                              if (
+                                !receipt ||
+                                !ext ||
+                                !["pdf", "png", "jpg", "jpeg"].includes(ext) ||
+                                receipt.size === 0 ||
+                                receipt.size > 10 * 1024 * 1024
+                              )
+                                throw Error(
+                                  "Inclua o comprovante em PDF, PNG ou JPG, até 10 MB.",
+                                );
+                              receiptPath = `${clientId}/${crypto.randomUUID()}.${ext}`;
+                              const { error: re } = await supabase.storage
+                                .from("payment-receipts")
+                                .upload(receiptPath, receipt);
+                              if (re)
+                                throw Error("Falha ao enviar comprovante.");
+                            }
                             const r = await submitCommercialSignature(
                               d.id,
                               path,
+                              receiptPath || undefined,
                             );
                             if (!r.success) throw Error(r.message);
                             path = "";
+                            receiptPath = "";
+                            window.dispatchEvent(
+                              new Event("has-workflow-updated"),
+                            );
                             setMessage(r.message);
                             await load();
                           } catch (e) {
+                            if (receiptPath)
+                              await supabase.storage
+                                .from("payment-receipts")
+                                .remove([receiptPath]);
                             if (path)
                               await supabase.storage
                                 .from("commercial-documents")
@@ -708,6 +837,17 @@ export default function CommercialDocuments({
                             required
                           />
                         </label>
+                        {kind === "contrato" && (
+                          <label>
+                            Comprovante de pagamento
+                            <input
+                              name="receipt"
+                              type="file"
+                              accept=".pdf,.png,.jpg,.jpeg"
+                              required
+                            />
+                          </label>
+                        )}
                         <button className="btn" disabled={busy}>
                           Enviar para conferência
                         </button>

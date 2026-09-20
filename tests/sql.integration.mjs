@@ -356,4 +356,68 @@ assert.equal((await db.query(`select status from budget_payments where id='${pay
 await db.exec(`update client_projects set status='em_andamento' where id='${project}'`);
 await denied(`select publish_commercial_document('${offer1}')`);
 console.log('PASS payment selection, correct totals, signed approval, private receipts, admin confirmation and analysis gate');
+
+await as(a);await denied(`select create_client_notice('${b}','Aviso','Tentativa indevida')`);
+await db.exec(`insert into account_preferences(client_id,avatar_path) values('${a}','${a}/photo.png')`);
+await denied(`insert into account_preferences(client_id) values('${b}')`);
+await denied(`update account_preferences set avatar_path='${b}/photo.png' where client_id='${a}'`);
+await as(b);assert.equal((await db.query('select * from account_preferences')).rows.length,0);assert.equal((await db.query(`select * from client_lifecycle('${a}',null)`)).rows.length,0);
+await as(admin);await db.exec(`select create_client_notice('${a}','Aviso de teste','Consulte seu projeto')`);
+const slot='50000000-0000-4000-8000-000000000001';
+await db.exec(`insert into consultation_slots(id,starts_at,ends_at,mode) values('${slot}',now()+interval '20 hours',now()+interval '21 hours','online')`);
+await denied(`insert into consultation_slots(starts_at,ends_at,mode) values(now()+interval '20 hours 30 minutes',now()+interval '21 hours 30 minutes','online')`);
+await as(a);await denied(`select book_consultation('${slot}','${project}',null)`);
+await as(admin);await db.exec(`insert into storage.objects(bucket_id,name) values('client-documents','${a}/result.html');insert into client_documents(client_id,project_id,title,kind,uploader_role,uploaded_by,storage_path) values('${a}','${project}','Resultado','relatorio','admin','${admin}','${a}/result.html')`);
+const revision=(await db.query(`insert into project_revisions(project_id,title) values('${project}','Revisão privada') returning id`)).rows[0].id;
+await as(a);assert.equal((await db.query(`select * from project_revisions where id='${revision}'`)).rows.length,0);
+await denied(`select book_consultation('${slot}','${project}','${revision}')`);
+await db.exec(`select book_consultation('${slot}','${project}',null)`);
+await denied(`select book_consultation('${slot}','${project}',null)`);
+const booking=(await db.query(`select id from consultation_bookings where slot_id='${slot}'`)).rows[0].id;
+await denied(`select manage_consultation('${booking}','confirmado','https://meet.google.com/test-link','')`);
+await as(b);assert.equal((await db.query('select * from consultation_bookings')).rows.length,0);assert.equal((await db.query(`select busy from list_consultation_slots() where id='${slot}'`)).rows[0].busy,true);await denied(`select book_consultation('${slot}','${project}',null)`);
+await as(admin);await denied(`update consultation_slots set enabled=false where id='${slot}'`);await denied(`select manage_consultation('${booking}','confirmado','https://example.test','')`);
+await db.exec(`select manage_consultation('${booking}','confirmado','https://meet.google.com/abc-defg-hij','')`);
+await denied(`select manage_consultation('${booking}','concluido')`);
+await db.exec(`update project_revisions set enabled=true where id='${revision}'`);
+await as(a);assert.equal((await db.query(`select * from project_revisions where id='${revision}'`)).rows.length,1);
+await as('','service_role');await db.exec('select enqueue_consultation_reminders();select enqueue_consultation_reminders()');assert.equal((await db.query(`select count(*)::int n from notifications where event_key='meeting-reminder:${booking}:day'`)).rows[0].n,2);
+await as(a);await db.exec(`select manage_consultation('${booking}','cancelado')`);assert.equal((await db.query(`select busy from list_consultation_slots() where id='${slot}'`)).rows[0].busy,false);
+await as(admin);await denied(`select archive_client_budget('${payBudget}')`);
+await db.exec(`select archive_client_budget('${cb}')`);assert.equal((await db.query(`select status from client_budgets where id='${cb}'`)).rows[0].status,'cancelado');
+console.log('PASS private avatars, notices, lifecycle isolation, hidden revisions, booking privacy, overlap protection, cancellation, deduplicated reminders and archival');
+
+
+// New native-contract path: approved quote -> provider signature -> client package -> review.
+await as(admin);
+const nativeBudget=(await db.query('select save_client_budget_v3($1::jsonb) id',[JSON.stringify({...cPayload,id:null,publicationPartnership:false})])).rows[0].id;
+await db.exec(`update client_budgets set valid_until=current_date+30 where id='${nativeBudget}'`);
+const nativeRevision=(await db.query(`select revision from client_budgets where id='${nativeBudget}'`)).rows[0].revision;
+const nq='60000000-0000-4000-8000-000000000001',nc='60000000-0000-4000-8000-000000000002';
+for(const [id,kind] of [[nq,'orcamento']])await db.exec(`insert into storage.objects(bucket_id,name) values('commercial-documents','${a}/${id}/document.pdf'),('commercial-documents','${a}/${id}/editable.docx');insert into commercial_documents(id,client_id,budget_id,kind,title,body,snapshot,source_revision,pdf_path,word_path,payment_option) values('${id}','${a}','${nativeBudget}','${kind}','Documento nativo','', '${snap}',${nativeRevision},'${a}/${id}/document.pdf','${a}/${id}/editable.docx','{"total":100,"label":"Pix"}');`);
+await db.exec(`select publish_commercial_document('${nq}')`);
+await as(a);await db.exec(`select choose_payment_offer('${nq}');select decide_commercial_document('${nq}',true,'');insert into storage.objects(bucket_id,name) values('commercial-documents','${a}/signatures/native-quote.pdf');select submit_signed_commercial('${nq}','${a}/signatures/native-quote.pdf')`);
+await as(admin);await db.exec(`select review_commercial_signature('${nq}',true);insert into storage.objects(bucket_id,name) values('commercial-documents','${a}/${nc}/document.pdf'),('commercial-documents','${a}/${nc}/editable.docx'),('commercial-documents','${a}/${nc}/provider.pdf');insert into commercial_documents(id,client_id,budget_id,kind,title,body,snapshot,source_revision,pdf_path,word_path) values('${nc}','${a}','${nativeBudget}','contrato','Contrato nativo','',('${snap}'::jsonb||'{"template":{"engine":"has-native-v1","pixKey":"chave de teste","paymentInstructions":"Pix acordado"}}'::jsonb),${nativeRevision},'${a}/${nc}/document.pdf','${a}/${nc}/editable.docx')`);
+await denied(`select publish_commercial_document('${nc}')`);
+await db.exec(`select register_provider_signature('${nc}','${a}/${nc}/provider.pdf');select publish_commercial_document('${nc}')`);
+const np=(await db.query(`select * from budget_payments where budget_id='${nativeBudget}'`)).rows[0];assert.equal(np.status,'aguardando_pagamento');assert.match(np.instructions,/chave de teste/);
+await as(b);await denied(`select submit_contract_package('${nc}','${b}/signatures/forged.pdf','${b}/fake.pdf')`);
+await as(a);await db.exec(`select decide_commercial_document('${nc}',true,'');insert into storage.objects(bucket_id,name) values('commercial-documents','${a}/signatures/native-contract.pdf'),('payment-receipts','${a}/native-receipt.pdf')`);
+await denied(`select submit_contract_package('${nc}','${a}/signatures/native-contract.pdf','${a}/missing.pdf')`);
+assert.equal((await db.query(`select signature_status from commercial_documents where id='${nc}'`)).rows[0].signature_status,'pendente');
+await db.exec(`select submit_contract_package('${nc}','${a}/signatures/native-contract.pdf','${a}/native-receipt.pdf')`);
+await as(admin);await denied(`select manage_budget_payment('${np.id}','confirmar')`);await db.exec(`select review_commercial_signature('${nc}',true);select manage_budget_payment('${np.id}','confirmar')`);
+assert.equal((await db.query(`select status from budget_payments where id='${np.id}'`)).rows[0].status,'confirmado');
+console.log('PASS native provider-signed contract gate, atomic signed-contract/payment package, chosen payment instructions, admin signature/payment verification');
+
+
+await as(a);await denied('select claim_notification_whatsapp()');
+await as(admin);
+const historyProject=(await db.query(`insert into client_projects(client_id,title) values('${a}','History preservation') returning id`)).rows[0].id;
+const historyRevision=(await db.query(`insert into project_revisions(project_id,title,enabled) values('${historyProject}','Revisão preservada',true) returning id`)).rows[0].id;
+await db.exec(`insert into storage.objects(bucket_id,name) values('client-documents','${a}/revision.pdf');insert into client_documents(client_id,project_id,revision_id,title,kind,storage_path) values('${a}','${historyProject}','${historyRevision}','Revisão','relatorio','${a}/revision.pdf');select delete_client_project('${historyProject}','${a}')`);
+assert.equal((await db.query(`select project_id from project_revisions where id='${historyRevision}'`)).rows[0].project_id,null);
+assert.equal((await db.query(`select project_id from client_documents where revision_id='${historyRevision}'`)).rows[0].project_id,null);
+await as(a);assert.equal((await db.query(`select client_id from project_revisions where id='${historyRevision}'`)).rows[0].client_id,a);
+console.log('PASS WhatsApp queue server-only and deleted project preserves revision documents and ownership');
 await db.close();

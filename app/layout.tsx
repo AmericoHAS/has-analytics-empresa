@@ -4,6 +4,7 @@ import "./workspace.css";
 import "./public.css";
 import "./account-flow.css";
 import "./additions.css";
+import "./lifecycle.css";
 
 export const metadata: Metadata = {
   title: "HAS Analytics",

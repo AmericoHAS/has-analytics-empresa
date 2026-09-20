@@ -52,7 +52,9 @@ export async function saveDocumentTemplate(form: FormData) {
         provider_contact: z.string().trim().max(300),
       })
       .parse(Object.fromEntries(form));
-    const { error } = await db.from("document_templates").upsert(data);
+    const { error } = await db
+      .from("document_templates")
+      .upsert({ ...data, native_body: data.body });
     if (error)
       throw Error(
         "Não foi possível salvar o modelo. Confira a atualização comercial do banco.",
@@ -74,9 +76,16 @@ export async function generateCommercialDocument(form: FormData) {
     const input = z
       .object({
         budgetId: z.string().uuid(),
-        kind: z.enum(["orcamento", "contrato"]),
+        kind: z.enum(["orcamento", "contrato", "recibo"]),
         body: z.string().max(20000),
         title: z.string().trim().min(3).max(300),
+        amountWords: z.string().max(500).default(""),
+        transactionId: z.string().max(200).default(""),
+        revisions: z.string().max(100).default("1"),
+        forumCity: z.string().max(200).default("Maringá — PR"),
+        paymentLink: z
+          .union([z.literal(""), z.string().url().startsWith("https://")])
+          .default(""),
       })
       .parse(Object.fromEntries(form));
     const { data: b, error: be } = await db
@@ -97,7 +106,11 @@ export async function generateCommercialDocument(form: FormData) {
         .select("*")
         .eq("client_id", b.client_id)
         .single(),
-      db.from("document_templates").select("*").eq("kind", input.kind).single(),
+      db
+        .from("document_templates")
+        .select("*")
+        .eq("kind", input.kind === "recibo" ? "orcamento" : input.kind)
+        .single(),
       db
         .from("client_budget_items")
         .select("description,quantity,unit_price")
@@ -118,7 +131,7 @@ export async function generateCommercialDocument(form: FormData) {
       );
     const { data: settings, error: se } = await db
       .from("payment_settings")
-      .select("options")
+      .select("options,pix_key,instructions")
       .eq("id", 1)
       .single();
     if (se)
@@ -127,9 +140,16 @@ export async function generateCommercialDocument(form: FormData) {
       );
     const { data: chosen } = await db
       .from("budget_payments")
-      .select("option")
+      .select("option,status,confirmed_at")
       .eq("budget_id", b.id)
       .maybeSingle();
+    if (
+      input.kind === "recibo" &&
+      (chosen?.status !== "confirmado" || !input.amountWords.trim())
+    )
+      throw Error(
+        "Confirme o recebimento integral e informe o valor por extenso antes de emitir recibo.",
+      );
     const options: PaymentOption[] =
       input.kind === "orcamento"
         ? (settings?.options ?? []).filter((o: PaymentOption) => o.enabled)
@@ -138,6 +158,29 @@ export async function generateCommercialDocument(form: FormData) {
       throw Error(
         "Ative ao menos uma forma de pagamento nos Modelos Comerciais.",
       );
+    const { data: planning } = await db
+      .from("budget_planning")
+      .select("*")
+      .eq("budget_id", b.id)
+      .maybeSingle();
+    const { data: request } = planning?.request_id
+      ? await db
+          .from("budget_requests")
+          .select("description,intake")
+          .eq("id", planning.request_id)
+          .maybeSingle()
+      : { data: null };
+    if (input.kind === "contrato" && !chosen?.option)
+      throw Error("O cliente precisa escolher e aprovar a forma de pagamento.");
+    const { data: contract } = await db
+      .from("commercial_documents")
+      .select("id")
+      .eq("budget_id", b.id)
+      .eq("kind", "contrato")
+      .in("status", ["enviado", "aprovado"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     const group = randomUUID();
     const rows: Record<string, unknown>[] = [];
     const variants =
@@ -180,6 +223,35 @@ export async function generateCommercialDocument(form: FormData) {
             : (b.payment_terms ?? ""),
           due: b.final_due_date ?? "",
           validity: b.valid_until ?? "",
+        },
+        template: {
+          engine: "has-native-v1",
+          contractNumber:
+            input.kind === "recibo" && contract
+              ? `CTR-${contract.id.slice(0, 8).toUpperCase()}`
+              : undefined,
+          amountWords: input.amountWords,
+          transactionId: input.transactionId,
+          paymentDate: chosen?.confirmed_at
+            ? new Date(chosen.confirmed_at).toLocaleDateString("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+              })
+            : "",
+          installments: String(chosen?.option?.installments ?? 1),
+          projectTitle: b.title,
+          department: planning?.department ?? "",
+          requestText: request?.description ?? b.description ?? "",
+          revisions: input.revisions,
+          forumCity: input.forumCity,
+          signatureCity: client.city,
+          pixKey: settings?.pix_key ?? "",
+          paymentInstructions: settings?.instructions ?? "",
+          paymentLink: input.paymentLink,
+          partnershipClause: b.publication_partnership
+            ? "Parceria em publicação com desconto de " +
+              b.discount_percent +
+              "%, conforme escopo e responsabilidades acordados entre as partes."
+            : "",
         },
         items: items.map((i) => ({
           ...i,
@@ -270,7 +342,11 @@ export async function publishCommercial(id: string, reviewed: boolean) {
     const { db } = await session(true);
     const { error } = await db.rpc("publish_commercial_document", { p_id: id });
     if (error) throw Error(error.message);
-    return { success: true, message: "Documento disponibilizado ao cliente." };
+    return {
+      success: true,
+      message:
+        "Documento disponível na área do cliente. O aviso foi registrado na fila de e-mail; confira a entrega na aba Avisos.",
+    };
   } catch (e) {
     return failure(e);
   }
@@ -301,7 +377,11 @@ export async function decideCommercial(
     return failure(e);
   }
 }
-export async function submitCommercialSignature(id: string, path: string) {
+export async function submitCommercialSignature(
+  id: string,
+  path: string,
+  receipt?: string,
+) {
   try {
     z.string().uuid().parse(id);
     const { db, user } = await session();
@@ -319,14 +399,53 @@ export async function submitCommercialSignature(id: string, path: string) {
         "O arquivo não é um PDF legível ou está protegido por senha.",
       );
     }
-    const { error } = await db.rpc("submit_signed_commercial", {
-      p_id: id,
-      p_path: path,
-    });
+    const { error } = await db.rpc(
+      receipt ? "submit_contract_package" : "submit_signed_commercial",
+      {
+        p_id: id,
+        p_path: path,
+        ...(receipt ? { p_receipt: receipt } : {}),
+      },
+    );
     if (error) throw Error(error.message);
     return {
       success: true,
       message: "PDF recebido. A assinatura será conferida pela administração.",
+    };
+  } catch (e) {
+    return failure(e);
+  }
+}
+export async function registerProviderSignature(id: string, path: string) {
+  try {
+    z.string().uuid().parse(id);
+    const { db } = await session(true);
+    const { data: d } = await db
+      .from("commercial_documents")
+      .select("client_id")
+      .eq("id", id)
+      .single();
+    if (
+      !d ||
+      !path.startsWith(`${d.client_id}/${id}/`) ||
+      !path.endsWith(".pdf")
+    )
+      throw Error("Arquivo inválido.");
+    const { data: file, error } = await db.storage
+      .from("commercial-documents")
+      .download(path);
+    if (error || !file || file.size > 20 * 1024 * 1024)
+      throw Error("Envie um PDF de até 20 MB.");
+    await PDFDocument.load(await file.arrayBuffer());
+    const { error: save } = await db.rpc("register_provider_signature", {
+      p_id: id,
+      p_path: path,
+    });
+    if (save) throw Error(save.message);
+    return {
+      success: true,
+      message:
+        "PDF assinado pela HAS registrado. Confira a versão antes de disponibilizar.",
     };
   } catch (e) {
     return failure(e);

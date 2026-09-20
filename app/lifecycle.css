@@ -1,0 +1,240 @@
+.account-access {
+  display: flex !important;
+  gap: 10px;
+  align-items: center;
+}
+.account-access > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.account-access strong {
+  display: block !important;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.account-access small {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  background: #dff6ff;
+  color: #075a88;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.account-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.account-settings {
+  margin-bottom: 20px;
+}
+.account-settings > .row {
+  justify-content: flex-start;
+}
+.dashboard aside .sidebar-whatsapp {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: #0c724d;
+  color: #fff;
+  border-radius: 50%;
+}
+.dashboard-hero {
+  position: relative;
+}
+.pending-actions {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  max-width: 460px;
+}
+.pending-actions a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff2bd;
+  color: #4d3600;
+  padding: 12px 16px;
+  border: 1px solid #f2cc67;
+  border-radius: 14px;
+  box-shadow: 0 8px 26px #001b3930;
+  animation: pending-enter 0.4s ease-out;
+}
+.pending-actions strong,
+.pending-actions small {
+  display: block;
+}
+.pending-actions small {
+  font-size: 0.75rem;
+}
+.workspace-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.lifecycle-progress {
+  padding: 16px;
+  border: 1px solid #bee3f0;
+  border-radius: 16px;
+  background: linear-gradient(110deg, #f0fbff, #fff);
+}
+.lifecycle-progress progress {
+  width: 100%;
+  height: 12px;
+  border-radius: 12px;
+  accent-color: #078bc1;
+  overflow: hidden;
+}
+.lifecycle-progress progress::-webkit-progress-bar {
+  background: #dfeaf1;
+}
+.lifecycle-progress progress::-webkit-progress-value {
+  background: linear-gradient(90deg, #086da9, #00bddb);
+  border-radius: 12px;
+  transition: width 0.7s;
+}
+.lifecycle-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: #526d80;
+  gap: 10px;
+}
+.consultation-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  max-height: 360px;
+  overflow: auto;
+}
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid #b8dceb;
+  background: #f2fcff;
+  border-radius: 14px;
+  padding: 14px;
+}
+.slot.busy {
+  background: #eef1f5;
+  color: #627080;
+}
+.slot small {
+  font-weight: 700;
+}
+.html-report {
+  position: fixed;
+  inset: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 0 0 30px #031b3acc;
+}
+.html-report iframe {
+  width: 100%;
+  flex: 1;
+  border: 1px solid #bfd5e2;
+  background: white;
+}
+.html-report p {
+  font-size: 0.8rem;
+}
+.html-report .btn {
+  align-self: flex-end;
+}
+.consultation-section > summary {
+  cursor: pointer;
+  color: #056ca4;
+  font-weight: 700;
+}
+select {
+  max-width: 100%;
+}
+@keyframes pending-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (min-width: 1100px) {
+  .client-dashboard .dashboard-hero {
+    padding-right: 410px;
+  }
+  .client-dashboard .pending-actions {
+    position: absolute;
+    right: 24px;
+    top: 16px;
+    width: 350px;
+    margin: 0;
+  }
+  .client-dashboard > section {
+    padding-top: 28px;
+  }
+  .client-dashboard .dashboard-hero h1 {
+    margin-bottom: 4px;
+  }
+}
+@media (max-width: 800px) {
+  .account-access strong {
+    max-width: 140px;
+  }
+  .account-access small {
+    display: none;
+  }
+  .pending-actions {
+    max-width: 100%;
+  }
+  .lifecycle-labels {
+    font-size: 0.6rem;
+  }
+  .html-report {
+    inset: 5px;
+    padding: 10px;
+  }
+  .workspace-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .workspace-tabs button {
+    flex-shrink: 0;
+  }
+  .account-settings .account-avatar {
+    width: 64px;
+    height: 64px;
+  }
+  .consultation-slots {
+    grid-template-columns: 1fr 1fr;
+  }
+  .dashboard aside .sidebar-whatsapp {
+    flex: 0 0 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pending-actions a {
+    animation: none;
+  }
+  .lifecycle-progress progress::-webkit-progress-value {
+    transition: none;
+  }
+}
+
+.client-dashboard .project-card{padding:20px}.client-dashboard .project-card .stack{gap:12px}.client-dashboard .project-card details{padding-top:8px;margin-top:6px}.client-dashboard .project-card details>summary{padding:8px 0}.client-dashboard .project-scope{margin-bottom:12px}.client-dashboard .workspace-header{margin-bottom:0}.client-dashboard .workspace-header h2{margin:4px 0 8px}

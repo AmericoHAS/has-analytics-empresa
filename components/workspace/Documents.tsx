@@ -30,9 +30,11 @@ const extensions = [
   "rds",
   "pptx",
 ];
-// Force a safe viewer MIME; HTML and other active formats are download-only.
+// HTML is isolated in a sandbox with an opaque origin and no network access.
 const previewTypes: Record<string, string> = {
   pdf: "application/pdf",
+  html: "text/html",
+  htm: "text/html",
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -49,11 +51,14 @@ export default function Documents({
   clientId,
   projects,
   admin = false,
+  revisionId,
 }: {
   clientId: string;
   projects: { id: string; title: string }[];
   admin?: boolean;
+  revisionId?: string;
 }) {
+  const [html, setHtml] = useState<string | null>(null);
   const [docs, setDocs] = useState<Doc[]>([]),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
@@ -63,20 +68,22 @@ export default function Documents({
     [search, setSearch] = useState(""),
     [show, setShow] = useState(false);
   const load = useCallback(async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("client_documents")
       .select(
         "id,client_id,project_id,title,kind,status,storage_path,created_at,uploaded_by,uploader_role,original_name,file_size,requires_signature,signed_at",
       )
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
+    if (revisionId) query = query.eq("revision_id", revisionId);
+    const { data, error } = await query;
     if (error)
       setMessage(
         "Não foi possível carregar os documentos. Confira sua conexão e a configuração do banco.",
       );
     else setDocs(data ?? []);
     setLoading(false);
-  }, [clientId]);
+  }, [clientId, revisionId]);
   useEffect(() => {
     void load();
     const timer = setInterval(() => void load(), 60000);
@@ -116,6 +123,7 @@ export default function Documents({
       stored = true;
       const { error: insert } = await supabase.from("client_documents").insert({
         client_id: clientId,
+        revision_id: revisionId ?? null,
         project_id: f.get("project") || null,
         title: String(f.get("title")).trim(),
         kind: admin ? f.get("kind") : "arquivo",
@@ -179,6 +187,23 @@ export default function Documents({
   async function preview(doc: Doc) {
     const type = previewType(doc);
     if (!type || !doc.storage_path) return;
+    if (type === "text/html") {
+      setBusy(true);
+      try {
+        const { data, error } = await supabase.storage
+          .from("client-documents")
+          .download(doc.storage_path);
+        if (error || !data) throw Error("Relatório indisponível.");
+        setHtml(await data.text());
+      } catch (e) {
+        setMessage(
+          e instanceof Error ? e.message : "Falha ao abrir relatório.",
+        );
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const viewer = window.open("about:blank", "_blank");
     if (!viewer) {
       setMessage("Permita abrir uma nova aba para visualizar o documento.");
@@ -235,6 +260,32 @@ export default function Documents({
   );
   return (
     <div className="stack">
+      {html !== null && (
+        <div
+          className="html-report"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Relatório HTML"
+        >
+          <button className="btn" onClick={() => setHtml(null)}>
+            Fechar relatório
+          </button>
+          <p>
+            Visualização privada. Recursos externos estão bloqueados; use HTML
+            autocontido exportado pelo R Markdown.
+          </p>
+          <iframe
+            title="Relatório de análise"
+            sandbox="allow-scripts"
+            referrerPolicy="no-referrer"
+            srcDoc={
+              '<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src &apos;none&apos;; script-src &apos;unsafe-inline&apos; &apos;unsafe-eval&apos; data: blob:; style-src &apos;unsafe-inline&apos; data:; img-src data: blob:; font-src data:; connect-src &apos;none&apos;; form-action &apos;none&apos;; base-uri &apos;none&apos;">' +
+              html
+            }
+          />
+        </div>
+      )}
+
       <div className="workspace-header">
         <div>
           <span className="eyebrow">Documentos privados</span>
@@ -256,7 +307,10 @@ export default function Documents({
             </label>
             <label>
               Projeto
-              <select name="project">
+              <select
+                name="project"
+                defaultValue={revisionId ? projects[0]?.id : ""}
+              >
                 <option value="">Geral do cliente</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>

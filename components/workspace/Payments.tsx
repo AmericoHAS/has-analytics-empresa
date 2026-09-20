@@ -1,4 +1,6 @@
 "use client";
+import PaymentCorrection from "./PaymentCorrection";
+import Receipts from "./Receipts";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { paymentAction, receiptDownload } from "@/app/admin/payment-actions";
@@ -52,6 +54,8 @@ export default function Payments({
   }, [clientId]);
   useEffect(() => {
     const t = setTimeout(() => void load(), 0);
+    const timer = setInterval(() => void load(), 15000);
+    window.addEventListener("has-workflow-updated", load);
     if (admin)
       supabase
         .from("payment_settings")
@@ -69,7 +73,11 @@ export default function Payments({
                 .join("\n"),
             );
         });
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      clearInterval(timer);
+      window.removeEventListener("has-workflow-updated", load);
+    };
   }, [load, admin]);
   async function run(
     action: string,
@@ -94,7 +102,8 @@ export default function Payments({
         <h2>Pagamento e liberação</h2>
         <p>
           Escolha a forma no orçamento, aprove e devolva o PDF assinado. Após a
-          conferência da assinatura, solicite o pagamento aqui.
+          conferência da assinatura, a HAS enviará o contrato com as instruções
+          para pagar.
         </p>
       </div>
       {message && (
@@ -123,14 +132,11 @@ export default function Payments({
               {money(p.option.lastInstallment)}
             </p>
           )}
-          {!admin && ["assinatura", "rejeitado"].includes(p.status) && (
-            <button
-              className="btn primary"
-              disabled={busy}
-              onClick={() => run("request", p.id)}
-            >
-              Solicitar pagamento após assinatura
-            </button>
+          {!admin && p.status === "assinatura" && (
+            <p className="muted">
+              Após a conferência do orçamento assinado, a HAS enviará o contrato
+              e as instruções de pagamento.
+            </p>
           )}
           {p.instructions && (
             <div className="workflow-notice preserve">{p.instructions}</div>
@@ -191,64 +197,19 @@ export default function Payments({
                 </button>
               </form>
             )}
-          {!admin &&
-            ["aguardando_pagamento", "rejeitado"].includes(p.status) && (
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const file = new FormData(e.currentTarget).get(
-                    "receipt",
-                  ) as File;
-                  let path = "";
-                  setBusy(true);
-                  try {
-                    const ext = file.name.split(".").pop()?.toLowerCase();
-                    if (
-                      !ext ||
-                      !["pdf", "png", "jpg", "jpeg"].includes(ext) ||
-                      file.size === 0 ||
-                      file.size > 10 * 1024 * 1024
-                    )
-                      throw Error("Envie PDF, PNG ou JPG de até 10 MB.");
-                    path = `${clientId}/${crypto.randomUUID()}.${ext}`;
-                    const { error } = await supabase.storage
-                      .from("payment-receipts")
-                      .upload(path, file, { upsert: false });
-                    if (error) throw Error("Falha ao enviar comprovante.");
-                    const r = await paymentAction("receipt", p.id, { path });
-                    if (!r.success) throw Error(r.message);
-                    path = "";
-                    setMessage(
-                      "Comprovante enviado. Aguarde a conferência do recebimento.",
-                    );
-                    await load();
-                  } catch (e) {
-                    if (path)
-                      await supabase.storage
-                        .from("payment-receipts")
-                        .remove([path]);
-                    setMessage(
-                      e instanceof Error ? e.message : "Falha no envio.",
-                    );
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                <label>
-                  Comprovante de pagamento
-                  <input
-                    type="file"
-                    name="receipt"
-                    accept=".pdf,.png,.jpg,.jpeg"
-                    required
-                  />
-                </label>
-                <button className="btn primary" disabled={busy}>
-                  Enviar comprovante
-                </button>
-              </form>
-            )}
+          {!admin && p.status === "aguardando_pagamento" && (
+            <p className="workflow-notice">
+              Envie o comprovante junto com o contrato assinado no formulário do
+              contrato acima.
+            </p>
+          )}
+          {!admin && p.status === "rejeitado" && (
+            <PaymentCorrection
+              clientId={clientId}
+              paymentId={p.id}
+              onChange={load}
+            />
+          )}
           {p.receipt_path && (
             <button
               className="btn"
@@ -294,6 +255,9 @@ export default function Payments({
                 </button>
               </div>
             </form>
+          )}
+          {p.status === "confirmado" && (
+            <Receipts budgetId={p.budget_id} admin={admin} />
           )}
           {p.status === "confirmado" && (
             <p className="workflow-notice success">

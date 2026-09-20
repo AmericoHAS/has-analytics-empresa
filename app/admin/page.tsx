@@ -1,5 +1,6 @@
 "use client";
 
+import AdminCalendar from "@/components/workspace/AdminCalendar";
 import SidebarBrand from "@/components/workspace/SidebarBrand";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -154,9 +155,11 @@ export default function Admin() {
     "comentarios",
     "mensagens",
     "configuracoes",
+    "agenda",
   ];
 
   const labels: Record<string, string> = {
+    agenda:"Agenda de consultorias",
     visao: "Visão geral",
     clientes: "Clientes",
     solicitacoes: "Solicitações",
@@ -240,6 +243,7 @@ export default function Admin() {
           </>
         )}
 
+        {tab === "agenda" && <AdminCalendar/>}
         {tab === "configuracoes" && <CommercialSettings />}
         {tab === "solicitacoes" && (
           <BudgetRequests
