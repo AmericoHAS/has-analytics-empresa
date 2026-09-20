@@ -1,5 +1,7 @@
 "use client";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import IntakeFields from "./IntakeFields";
+import { intakeFields } from "@/lib/commercial/intake";
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2 } from "lucide-react";
@@ -32,6 +34,7 @@ export function BudgetForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...Object.fromEntries(data),
+          intake: Object.fromEntries(intakeFields.map(([key]) => [key, String(data.get(key) ?? "")])),
           id: requestId.current,
           consent: data.get("consent") === "on",
         }),
@@ -164,6 +167,7 @@ export function BudgetForm({
           O prazo será confirmado após a avaliação do escopo.
         </small>
       </label>
+      <IntakeFields />
       <div className="access-note">
         <strong>Orçamento + solicitação de acesso</strong>Este pedido também
         inicia seu atendimento para a área do cliente. A conta será liberada

@@ -1,4 +1,6 @@
 "use client";
+import BudgetPlanningFields from "./BudgetPlanningFields";
+import CommercialDocuments from "@/components/workspace/CommercialDocuments";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -15,6 +17,8 @@ import {
 } from "@/app/admin/budget-actions";
 type Item = { description: string; quantity: number; unitPrice: number };
 type Budget = {
+  payment_terms?: string;
+  final_due_date?: string|null;
   id: string;
   budget_number: string;
   title: string;
@@ -419,6 +423,7 @@ export default function ClientBudgetManager({
               }
             />
           </label>
+          <BudgetPlanningFields clientId={clientId} budgetId={edit?.id} payment={edit?.payment_terms??model.payment} delivery={edit?.final_due_date??""} hours={hours} base={model.baseValue} additions={model.baseValue*Object.values(factors).filter(i=>i>=0).reduce((sum,i)=>sum+(model.coefficients[i]?.coefficient??0),0)} />
           <div className="total-card">
             <span>
               Subtotal {money(sum.subtotal)} · Desconto {discount}%
@@ -514,6 +519,7 @@ export default function ClientBudgetManager({
           </div>
         </article>
       ))}
+      <CommercialDocuments clientId={clientId} admin={!readOnly} kind="orcamento" onChange={load} />
       {detail && (
         <div className="workspace-card stack">
           <div className="row">

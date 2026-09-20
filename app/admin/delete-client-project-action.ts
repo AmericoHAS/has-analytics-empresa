@@ -13,7 +13,7 @@ export async function deleteClientProjectAction(projectId: string, clientId: str
   if (profile?.role !== "admin") return { success: false, message: "Acesso não autorizado." };
   const { data, error } = await db.rpc("delete_client_project", { p_project_id: projectId, p_client_id: clientId });
   if (error) return { success: false, message: ["PGRST202", "42883"].includes(error.code)
-    ? "Aplique a migration 202609180002 no Supabase para habilitar a exclusão com preservação dos documentos."
+    ? "Abra Supabase → SQL Editor → New query, execute supabase/ATUALIZAR-COMERCIAL.sql e tente novamente. Essa atualização habilita a exclusão preservando os documentos."
     : "Não foi possível excluir o projeto. Os dados foram preservados. Tente novamente." };
   if (!data) return { success: false, message: "Projeto não encontrado. Atualize a lista." };
   revalidatePath("/admin");

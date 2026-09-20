@@ -362,3 +362,11 @@ a[href*="wa.me"] svg { flex-shrink: 0; vertical-align: middle; }
 .compact-project-rail .project { display: flex; flex-direction: column; }
 .rail.compact-project-rail .project-image { height: 130px; flex-shrink: 0; }
 .compact-project-rail .project-body { flex: 1; min-height: 195px; }
+
+.founder-section p { text-align: justify; hyphens: auto; }
+.compact-project-rail .project { flex-basis: 335px; }
+.rail.compact-project-rail .project-image { height: 145px; }
+@media(max-width:600px) { .compact-project-rail .project { flex-basis: min(305px, 83vw); } }
+.commercial-editor textarea { min-height: 240px; }
+.commercial-document-actions { display:flex; flex-wrap:wrap; gap:10px; margin:16px 0; }
+.onboarding-notice { border-left:4px solid #00c8f4; padding:20px; background:#e8f7fc; border-radius:12px; }

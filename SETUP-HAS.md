@@ -1,5 +1,7 @@
 # HAS Analytics — ativação das áreas Admin e Cliente
 
+Atualização comercial de 19/09: consulte **SETUP-FLUXO-COMERCIAL.md**. Para banco já em uso, o arquivo **supabase/ATUALIZAR-COMERCIAL.sql** reúne as atualizações pendentes de exclusão, cadastro, documentos e aprovações.
+
 ## Antes da ativação
 
 - Faça backup do Supabase (banco e Storage) e preserve as variáveis de ambiente atuais.

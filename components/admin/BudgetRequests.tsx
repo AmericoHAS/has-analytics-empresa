@@ -1,10 +1,12 @@
 "use client";
+import { intakeFields } from "@/lib/commercial/intake";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { updateRequestStatus } from "@/app/admin/request-actions";
 import NewClientForm from "./NewClientForm";
 
 type BudgetRequest = {
+  intake?: Record<string,string>;
   id: string;
   client_id: string | null;
   name: string;
@@ -162,6 +164,7 @@ export default function BudgetRequests({
                 {item.phone && <span>{item.phone}</span>}
               </div>
               <p className="request-description">{item.description}</p>
+              <dl className="form-grid">{intakeFields.filter(([key])=>item.intake?.[key]).map(([key,label])=><div key={key}><dt>{label}</dt><dd>{item.intake?.[key]}</dd></div>)}</dl>
               {item.client_id ? (
                 <button
                   className="btn primary"
@@ -183,6 +186,7 @@ export default function BudgetRequests({
                     : "Preparar acesso do cliente"}
                 </button>
               )}
+              {!item.client_id && <button className="btn" disabled={busy!==null} onClick={async()=>{setBusy(item.id);try{const {error}=await supabase.rpc("link_budget_request_by_email",{p_request_id:item.id});if(error)setMessage(error.message);else{await load();setMessage("Solicitação vinculada ao cliente pelo e-mail.");}}catch{setMessage("Não foi possível vincular.");}finally{setBusy(null);}}}>Vincular ao cliente já cadastrado com este e-mail</button>}
               {!item.client_id && selected === item.id && (
                 <div className="request-form">
                   <h3>Cadastrar cliente</h3>

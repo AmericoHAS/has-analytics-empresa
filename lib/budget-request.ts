@@ -39,6 +39,7 @@ export const budgetRequestSchema = z.object({
   title: z.string().trim().min(5).max(180),
   description: z.string().trim().min(30).max(5000),
   desired_date: z.string().refine(validDate),
+  intake: z.object({research_area:z.string().max(250).optional(),data_status:z.string().max(250).optional(),urgency:z.string().max(250).optional(),purpose:z.string().max(250).optional(),delivery_model:z.string().max(250).optional(),department:z.string().max(250).optional()}).default({}),
   consent: z.literal(true),
   website: z.string().max(0),
 });
@@ -55,6 +56,7 @@ export function budgetRequestRecord(
     title: input.title,
     description: `${input.description}\n\n[Solicita orçamento e acesso à área do cliente. Autoriza contato sobre esta demanda.]`,
     desired_date: input.desired_date || null,
+    intake: input.intake,
     status: "nova",
   };
 }

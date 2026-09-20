@@ -1,4 +1,6 @@
 "use client";
+import ClientProfile from "./ClientProfile";
+import CommercialDocuments from "./CommercialDocuments";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { projectColumns, type AnalysisProject } from "@/lib/workspace/types";
@@ -55,6 +57,7 @@ export default function ClientWorkspace({
   }, [load, clientId]);
   return (
     <div className="stack">
+      <ClientProfile clientId={clientId} admin={admin} expanded={tab==="cadastro"} />
       <div className="summary">
         <article>
           <small>ANÁLISES EM CURSO</small>
@@ -93,7 +96,9 @@ export default function ClientWorkspace({
         {[
           ["projetos", "Projetos e prazos"],
           ["documentos", "Documentos"],
-          ["orcamentos", "Orçamentos"],
+          ["orcamentos", "Orçamentos e aprovações"],
+          ["contratos", "Contratos e assinaturas"],
+          ["cadastro", "Cadastro"],
           ["avisos", "Avisos"],
         ].map(([k, label]) => (
           <button
@@ -129,6 +134,7 @@ export default function ClientWorkspace({
               readOnly={!admin}
             />
           )}{" "}
+          {tab === "contratos" && <CommercialDocuments clientId={clientId} admin={admin} kind="contrato" />}
           {tab === "avisos" && (
             <Notifications
               clientId={admin ? clientId : undefined}

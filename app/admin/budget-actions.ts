@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 export type BudgetActionState = { success: boolean; message: string };
 const input = z.object({
+  requestId: z.union([z.string().uuid(),z.literal("")]).default(""),
+  paymentTerms: z.string().max(3000).default(""), finalDueDate:z.union([z.string().date(),z.literal("")]).default(""),
+  dataAssessment:z.string().max(3000).default(""),complexity:z.string().max(200).default(""),internalNotes:z.string().max(15000).default(""),department:z.string().max(250).default(""),
+  estimatedHours:z.coerce.number().min(0).max(100000).default(0),baseValue:z.coerce.number().min(0).max(10000000).default(0),additions:z.coerce.number().min(0).max(10000000).default(0),
   clientId: z.string().uuid(),
   projectId: z.union([z.string().uuid(), z.literal("")]),
   title: z.string().trim().min(1).max(300),
@@ -48,7 +52,7 @@ export async function createBudgetAction(
     });
     const id = String(form.get("budgetId") || "");
     if (id) z.string().uuid().parse(id);
-    const { error } = await db.rpc("save_client_budget", {
+    const { error } = await db.rpc("save_client_budget_v2", {
       payload: { ...data, id: id || null },
     });
     if (error) throw Error(error.message);
@@ -84,6 +88,7 @@ export async function updateBudgetStatusAction(form: FormData) {
     .update({
       status,
       approved_at: status === "aprovado" ? new Date().toISOString() : null,
+      ...(status === "enviado" ? {sent_at:new Date().toISOString()} : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);

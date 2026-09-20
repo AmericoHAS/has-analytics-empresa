@@ -1,4 +1,6 @@
 "use client";
+import IntakeFields from "@/components/public/IntakeFields";
+import { intakeFields } from "@/lib/commercial/intake";
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -102,8 +104,9 @@ export default function QuoteRequest() {
     setBusy(true);
     setMessage("");
     try {
-      const { error } = await supabase.rpc("submit_quote_request", {
+      const { error } = await supabase.rpc("submit_quote_request_v2", {
         p_request_id: requestId,
+        p_intake: Object.fromEntries(intakeFields.map(([key]) => [key, String(form.get(key) ?? "")])),
         p_name: String(form.get("name") ?? "").trim(),
         p_phone: String(form.get("phone") ?? "").trim(),
         p_service: String(form.get("service")),
@@ -302,7 +305,8 @@ export default function QuoteRequest() {
           Autorizo o uso dessas informações para avaliar minha solicitação e
           entrar em contato sobre o projeto.
         </label>
-        <button className="btn primary" disabled={busy}>
+        <IntakeFields />
+      <button className="btn primary" disabled={busy}>
           {busy ? "Enviando…" : "Enviar solicitação de orçamento ↗"}
         </button>
       </fieldset>
