@@ -1,5 +1,5 @@
 "use client";
-import { deleteClientProjectAction } from "@/app/admin/delete-client-project-action";
+import { deleteProject } from "@/lib/workspace/delete-project";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -34,16 +34,17 @@ export default function Projects({
     setBusy(true);
     setMessage("");
     try {
-      const result = await deleteClientProjectAction(edit.id, clientId);
+      const result = await deleteProject(supabase, edit.id, clientId);
       setMessage(result.message);
       if (result.success) {
         setConfirmDelete(false);
         setEdit(undefined);
+        window.dispatchEvent(new Event("has-workflow-updated"));
         onChange();
       }
     } catch {
       setMessage(
-        "Não foi possível confirmar a exclusão. Atualize a lista antes de tentar novamente.",
+        "Não foi possível atualizar a lista. Recarregue a página para conferir o resultado.",
       );
     } finally {
       setBusy(false);
