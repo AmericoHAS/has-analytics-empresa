@@ -80,26 +80,6 @@ export default function WorkflowOverview({
   }, [clientId, admin]);
   return (
     <section className="workflow-overview">
-      <div>
-        <span className="eyebrow">Um passo de cada vez</span>
-        <h2>
-          {admin ? "O que precisa da sua atenção" : "Seus próximos passos"}
-        </h2>
-      </div>
-      <div className="workflow-steps">
-        {[
-          ["orcamentos", "01", "Proposta e assinatura"],
-          ["pagamentos", "02", "Pagamento"],
-          ["documentos", "03", "Envio dos dados"],
-          ["projetos", "04", "Análise e resultados"],
-        ].map(([tab, n, label]) => (
-          <button key={tab} onClick={() => onNavigate(tab)}>
-            <b>{n}</b>
-            <span>{label}</span>
-            <span aria-hidden>↗</span>
-          </button>
-        ))}
-      </div>
       <div className="attention-row">
         {admin &&
           lifecycle
@@ -147,11 +127,6 @@ export default function WorkflowOverview({
           <button onClick={() => onNavigate("pagamentos")}>
             Pagamento requer atenção · {counts.payments}
           </button>
-        )}
-        {profile && !Object.values(counts).some(Boolean) && (
-          <span>
-            Nenhuma pendência identificada. Acompanhe as etapas abaixo.
-          </span>
         )}
       </div>
     </section>

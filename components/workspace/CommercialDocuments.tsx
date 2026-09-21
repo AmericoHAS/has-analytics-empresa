@@ -6,7 +6,6 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   registerProviderSignature,
-  saveDocumentTemplate,
   generateCommercialDocument,
   commercialDownload,
   publishCommercial,
@@ -59,12 +58,16 @@ export default function CommercialDocuments({
   kind,
   onChange,
   refreshKey,
+  budgetId,
+  compact = false,
 }: {
   clientId: string;
   admin?: boolean;
   kind: "orcamento" | "contrato";
   onChange?: () => void;
   refreshKey?: string;
+  budgetId?: string;
+  compact?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [history, setHistory] = useState(false);
@@ -75,7 +78,7 @@ export default function CommercialDocuments({
     [template, setTemplate] = useState<Template | null>(null),
     [body, setBody] = useState(""),
     [title, setTitle] = useState(""),
-    [budget, setBudget] = useState(""),
+    [budget, setBudget] = useState(budgetId ?? ""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [editor, setEditor] = useState(false),
@@ -106,8 +109,10 @@ export default function CommercialDocuments({
       return;
     }
     setLoaded(true);
-    setDocs(d.data ?? []);
-    setBudgets(b.data ?? []);
+    setDocs(
+      (d.data ?? []).filter((v) => !budgetId || v.budget_id === budgetId),
+    );
+    setBudgets((b.data ?? []).filter((v) => !budgetId || v.id === budgetId));
     const { data: p } = await supabase
       .from("budget_payments")
       .select("budget_id,document_id")
@@ -115,7 +120,7 @@ export default function CommercialDocuments({
     setChoices(
       Object.fromEntries((p ?? []).map((v) => [v.budget_id, v.document_id])),
     );
-  }, [clientId, kind]);
+  }, [clientId, kind, budgetId]);
   useEffect(() => {
     const timer = setTimeout(() => void load(), 0);
     if (admin)
@@ -181,78 +186,19 @@ export default function CommercialDocuments({
   }
   return (
     <section className="stack commercial-editor">
-      <div className="workspace-header">
-        <div>
-          <span className="eyebrow">Documentos e aprovações</span>
-          <h2>{kind === "contrato" ? "Contratos" : "PDFs das propostas"}</h2>
+      {!compact && (
+        <div className="workspace-header">
+          <div>
+            <span className="eyebrow">Documentos e aprovações</span>
+            <h2>{kind === "contrato" ? "Contratos" : "PDFs das propostas"}</h2>
+          </div>
+          <button className="btn" onClick={load} disabled={busy}>
+            Atualizar
+          </button>
         </div>
-        <button className="btn" onClick={load} disabled={busy}>
-          Atualizar
-        </button>
-      </div>
+      )}
       {admin && (
         <>
-          <details className="workspace-card">
-            <summary>
-              Modelo de {kind === "contrato" ? "contrato" : "orçamento"} e dados
-              do prestador
-            </summary>
-            {template ? (
-              <form
-                className="stack"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const f = new FormData(e.currentTarget);
-                  f.set("kind", kind);
-                  void run(async () => {
-                    const r = await saveDocumentTemplate(f);
-                    if (r.success) {
-                      const next = Object.fromEntries(f) as unknown as Template;
-                      setTemplate(next);
-                      setBody(next.body);
-                    }
-                    return r;
-                  });
-                }}
-              >
-                <p>
-                  Personalize o modelo padrão. Cada geração cria uma versão
-                  independente. Confira as condições contratuais antes de
-                  disponibilizar.
-                </p>
-                <div className="form-grid">
-                  {[
-                    ["provider_name", "Nome / razão social do prestador"],
-                    ["provider_tax_id", "CPF / CNPJ do prestador"],
-                    ["provider_address", "Endereço do prestador"],
-                    ["provider_contact", "Contato do prestador"],
-                  ].map(([key, label]) => (
-                    <label key={key}>
-                      {label}
-                      <input
-                        name={key}
-                        defaultValue={template[key as keyof Template]}
-                        maxLength={key === "provider_address" ? 500 : 300}
-                      />
-                    </label>
-                  ))}
-                </div>
-                <label>
-                  Texto padrão e condições
-                  <textarea
-                    name="body"
-                    defaultValue={template.body}
-                    maxLength={20000}
-                  />
-                </label>
-                <button className="btn" disabled={busy}>
-                  Salvar modelo
-                </button>
-              </form>
-            ) : (
-              <p>Carregando modelo…</p>
-            )}
-          </details>
           <button
             className="btn primary"
             disabled={busy || !template}
@@ -266,7 +212,7 @@ export default function CommercialDocuments({
               setEditor(!editor);
             }}
           >
-            Preparar nova versão PDF + Word
+            {docs.length ? "Gerar nova versão" : "Gerar PDF e Word"}
           </button>
           {editor && (
             <form
@@ -278,7 +224,7 @@ export default function CommercialDocuments({
                 void run(() => generateCommercialDocument(f));
               }}
             >
-              <label>
+              <label hidden={!!budgetId}>
                 Orçamento de origem
                 <select
                   name="budgetId"

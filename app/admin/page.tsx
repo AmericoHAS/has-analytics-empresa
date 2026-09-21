@@ -1,7 +1,8 @@
 "use client";
 
 import AdminCalendar from "@/components/workspace/AdminCalendar";
-import SidebarBrand from "@/components/workspace/SidebarBrand";
+import WorkspaceSidebar from "@/components/workspace/WorkspaceSidebar";
+import AccountAccess from "@/components/workspace/AccountAccess";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import NewClientForm from "@/components/admin/NewClientForm";
@@ -13,7 +14,6 @@ import ClientOverview from "@/components/admin/ClientOverview";
 import CommercialSettings from "@/components/workspace/CommercialSettings";
 import Notifications from "@/components/workspace/Notifications";
 import AdminDeadlines from "@/components/workspace/AdminDeadlines";
-import SignOut from "@/components/workspace/SignOut";
 
 type PendingComment = {
   approved: boolean;
@@ -24,6 +24,7 @@ type PendingComment = {
 };
 
 export default function Admin() {
+  const [account, setAccount] = useState({ id: "", name: "Administrador" });
   const [comments, setComments] = useState<PendingComment[]>([]);
   const [commentFilter, setCommentFilter] = useState("todos");
   const [tab, setTab] = useState("visao");
@@ -43,6 +44,18 @@ export default function Admin() {
 
   useEffect(() => {
     void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+        setAccount({ id: user.id, name: data?.full_name ?? "Administrador" });
+      }
+
       {
         const { data, error } = await supabase
           .from("comments")
@@ -159,7 +172,8 @@ export default function Admin() {
   ];
 
   const labels: Record<string, string> = {
-    agenda:"Agenda de consultorias",
+    perfil: "Minha conta",
+    agenda: "Agenda de consultorias",
     visao: "Visão geral",
     clientes: "Clientes",
     solicitacoes: "Solicitações",
@@ -172,42 +186,35 @@ export default function Admin() {
 
   return (
     <main className="dashboard admin">
-      <aside>
-        <SidebarBrand admin />
-        <small>GESTÃO DA OPERAÇÃO</small>
-
-        {tabs.map((item) => (
-          <button
-            key={item}
-            className={tab === item ? "active" : ""}
-            onClick={() => {
-              setTab(item);
-
-              if (item !== "clientes") {
-                setShowClientForm(false);
-              }
-
-              if (item !== "projetos") {
-                setShowProjectForm(false);
-              }
-
-              if (item !== "comentarios") {
-                setCommentMessage("");
-                setCommentToDelete(null);
-              }
-            }}
-          >
-            {labels[item]}
-          </button>
-        ))}
-        <SignOut />
-      </aside>
+      <WorkspaceSidebar
+        admin
+        items={tabs.map((id) => ({ id, label: labels[id] }))}
+        active={tab}
+        onProfile={() => setTab("perfil")}
+        onNavigate={(item) => {
+          setTab(item);
+          if (item !== "clientes") setShowClientForm(false);
+          if (item !== "projetos") setShowProjectForm(false);
+          if (item !== "comentarios") {
+            setCommentMessage("");
+            setCommentToDelete(null);
+          }
+        }}
+      />
 
       <section>
         <span className="eyebrow">Painel administrativo</span>
 
         <h1>{tab === "visao" ? "Visão geral" : labels[tab]}</h1>
 
+        {tab === "perfil" && account.id && (
+          <AccountAccess
+            clientId={account.id}
+            name={account.name}
+            settings
+            admin
+          />
+        )}
         {tab === "visao" && (
           <>
             <header className="dashboard-hero">
@@ -243,7 +250,7 @@ export default function Admin() {
           </>
         )}
 
-        {tab === "agenda" && <AdminCalendar/>}
+        {tab === "agenda" && <AdminCalendar />}
         {tab === "configuracoes" && <CommercialSettings />}
         {tab === "solicitacoes" && (
           <BudgetRequests

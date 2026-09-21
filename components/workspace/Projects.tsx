@@ -285,8 +285,13 @@ export default function Projects({
                 {p.deliverables || "A definir após avaliação do escopo."}
               </p>
             </details>
-            <ProjectLifecycle project={p} admin={admin} />
-            {admin && <ProjectDetails project={p} admin={admin} />}
+            <ProjectLifecycle
+              project={p}
+              admin={admin}
+              administrativePanel={
+                admin ? <ProjectDetails project={p} admin={admin} /> : undefined
+              }
+            />
           </article>
         ))}
     </div>
@@ -326,6 +331,8 @@ function ProjectDetails({
   }
   return (
     <details
+      open
+      className="embedded-checklist"
       onToggle={(e) => {
         const o = e.currentTarget.open;
         setOpen(o);

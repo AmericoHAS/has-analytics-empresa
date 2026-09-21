@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { AnalysisProject } from "@/lib/workspace/types";
 import { useLifecycle } from "./useLifecycle";
+import { CalendarDays, ListChecks, FilePenLine } from "lucide-react";
 import Consultations from "./Consultations";
 import Deadline from "./Deadline";
 import Documents from "./Documents";
@@ -15,10 +16,13 @@ type Revision = {
 export default function ProjectLifecycle({
   project,
   admin,
+  administrativePanel,
 }: {
   project: AnalysisProject;
   admin: boolean;
+  administrativePanel?: ReactNode;
 }) {
+  const [panel, setPanel] = useState<string | null>(null);
   const state = useLifecycle(project.client_id, project.id)[0];
   const [revisions, setRevisions] = useState<Revision[]>([]),
     [message, setMessage] = useState("");
@@ -64,19 +68,54 @@ export default function ProjectLifecycle({
           />
         )}
       </div>
-      {(admin || (state?.facts.results && !revisions.length)) && (
-        <details className="consultation-section">
-          <summary>Consultoria e agenda</summary>
+      <div className="project-action-row">
+        {(admin || (state?.facts.results && !revisions.length)) && (
+          <button
+            className="btn"
+            aria-expanded={panel === "agenda"}
+            onClick={() => setPanel(panel === "agenda" ? null : "agenda")}
+          >
+            <CalendarDays size={18} />
+            Consultoria e agenda
+          </button>
+        )}
+        {admin && (
+          <>
+            <button
+              className="btn"
+              aria-expanded={panel === "revision"}
+              onClick={() => setPanel(panel === "revision" ? null : "revision")}
+            >
+              <FilePenLine size={18} />
+              Abrir nova revisão para o cliente
+            </button>
+            <button
+              className="btn"
+              aria-expanded={panel === "checklist"}
+              onClick={() =>
+                setPanel(panel === "checklist" ? null : "checklist")
+              }
+            >
+              <ListChecks size={18} />
+              Checklist e informações administrativas
+            </button>
+          </>
+        )}
+      </div>
+      {admin && panel === "checklist" && (
+        <div className="project-action-panel">{administrativePanel}</div>
+      )}
+      {panel === "agenda" && (
+        <div className="project-action-panel">
           <Consultations
             clientId={project.client_id}
             projects={[project]}
             admin={admin}
           />
-        </details>
+        </div>
       )}
-      {admin && (
-        <details>
-          <summary>Abrir nova revisão para o cliente</summary>
+      {admin && panel === "revision" && (
+        <div className="project-action-panel">
           <form
             className="stack"
             onSubmit={async (e) => {
@@ -109,7 +148,7 @@ export default function ProjectLifecycle({
             <button className="btn">Abrir revisão e avisar cliente</button>
           </form>
           <p role="status">{message}</p>
-        </details>
+        </div>
       )}
       {revisions.map((r) => (
         <details key={r.id} className="workspace-card">

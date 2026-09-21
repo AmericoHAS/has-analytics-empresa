@@ -237,4 +237,710 @@ select {
   }
 }
 
-.client-dashboard .project-card{padding:20px}.client-dashboard .project-card .stack{gap:12px}.client-dashboard .project-card details{padding-top:8px;margin-top:6px}.client-dashboard .project-card details>summary{padding:8px 0}.client-dashboard .project-scope{margin-bottom:12px}.client-dashboard .workspace-header{margin-bottom:0}.client-dashboard .workspace-header h2{margin:4px 0 8px}
+.client-dashboard .project-card {
+  padding: 20px;
+}
+.client-dashboard .project-card .stack {
+  gap: 12px;
+}
+.client-dashboard .project-card details {
+  padding-top: 8px;
+  margin-top: 6px;
+}
+.client-dashboard .project-card details > summary {
+  padding: 8px 0;
+}
+.client-dashboard .project-scope {
+  margin-bottom: 12px;
+}
+.client-dashboard .workspace-header {
+  margin-bottom: 0;
+}
+.client-dashboard .workspace-header h2 {
+  margin: 4px 0 8px;
+}
+
+/* Atendimento: hierarquia compacta e calendário compartilhado. */
+.dashboard .project-card {
+  background: linear-gradient(125deg, #edf7ff, #e5f0fb);
+  border: 1px solid #c5deef;
+  box-shadow: 0 5px 20px #133e6710;
+}
+.project-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.project-action-row .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #fff;
+  font-size: 0.8rem;
+  padding: 10px 12px;
+}
+.project-action-row .btn[aria-expanded="true"] {
+  background: #123e68;
+  color: #fff;
+}
+.project-action-panel {
+  background: #fff;
+  border: 1px solid #cddfea;
+  border-radius: 16px;
+  padding: 16px;
+  animation: has-panel-in 0.2s ease;
+}
+.embedded-checklist > summary {
+  display: none;
+}
+.workflow-overview:has(.attention-row:empty) {
+  display: none;
+}
+.dashboard .workflow-overview {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.action-feedback {
+  padding: 12px 16px;
+  background: #e8f3ff;
+  border-left: 4px solid #267cba;
+  border-radius: 8px;
+  color: #123e68;
+  overflow-wrap: anywhere;
+}
+.client-whatsapp-float {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  background: #168b53;
+  color: white;
+  border-radius: 50%;
+  box-shadow: 0 6px 24px #073d4d35;
+}
+.client-whatsapp-float:hover {
+  transform: translateY(-3px);
+  background: #0c7242;
+}
+.has-calendar {
+  border: 1px solid #d8e5ef;
+  border-radius: 16px;
+  background: white;
+  overflow: hidden;
+  color: #234461;
+}
+.calendar-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px;
+}
+.calendar-navigation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.calendar-navigation strong {
+  margin-left: 8px;
+  text-transform: capitalize;
+}
+.calendar-navigation .btn {
+  padding: 7px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.calendar-navigation select {
+  width: auto;
+  min-width: 80px;
+  padding: 8px;
+}
+.calendar-legend {
+  display: flex;
+  gap: 16px;
+  padding: 0 16px 12px;
+  font-size: 0.75rem;
+  color: #137a90;
+  flex-wrap: wrap;
+}
+.calendar-legend span:nth-child(2) {
+  color: #7d8794;
+}
+.calendar-legend small {
+  margin-left: auto;
+  color: #64748b;
+}
+.calendar-scroll {
+  max-height: 440px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.calendar-grid {
+  display: grid;
+  min-width: 740px;
+}
+.calendar-grid.calendar-day {
+  min-width: 240px;
+}
+.calendar-day-heading {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  border: 0;
+  border-bottom: 1px solid #d8e5ef;
+  background: #f7fafc;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 8px;
+  gap: 2px;
+  color: #486179;
+  cursor: pointer;
+}
+.calendar-day-heading b {
+  font-size: 1.2rem;
+}
+.calendar-day-heading.today b {
+  background: #126b99;
+  color: white;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+}
+.calendar-hours {
+  position: relative;
+  background: #fafcfe;
+}
+.calendar-hours span {
+  position: absolute;
+  right: 5px;
+  font-size: 0.64rem;
+  color: #6b7f93;
+}
+.calendar-column {
+  position: relative;
+  border-left: 1px solid #e2eaf1;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 29px,
+    #edf2f7 29px,
+    #edf2f7 30px
+  );
+}
+.calendar-cell {
+  display: block;
+  width: 100%;
+  height: 30px;
+  background: transparent;
+  border: 0;
+  cursor: crosshair;
+}
+.calendar-cell:hover,
+.calendar-cell:focus-visible {
+  background: #e1f3ff;
+}
+.calendar-event {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  background: #dcf4fa;
+  color: #125b75;
+  border: 1px solid #a5dce7;
+  border-left: 3px solid #1693af;
+  border-radius: 5px;
+  text-align: left;
+  padding: 3px 5px;
+  overflow: hidden;
+  cursor: pointer;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  z-index: 1;
+}
+.calendar-event b {
+  display: block;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+.calendar-event span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.calendar-event:hover {
+  filter: brightness(0.96);
+}
+.calendar-event.reserved {
+  background: #edf0f4;
+  border-color: #c5ced8;
+  color: #667385;
+}
+.calendar-selection {
+  background: #eff7ff;
+  border: 1px solid #b9d9ef;
+  border-radius: 14px;
+  padding: 16px;
+  scroll-margin-top: 20px;
+}
+@keyframes has-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (min-width: 901px) {
+  .dashboard > aside {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .dashboard > aside .sidebar-account {
+    margin-top: auto;
+    padding-top: 24px;
+  }
+}
+@media (max-width: 600px) {
+  .calendar-toolbar {
+    padding: 10px;
+  }
+  .calendar-navigation strong {
+    font-size: 0.85rem;
+  }
+  .calendar-legend {
+    gap: 9px;
+  }
+  .project-action-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .client-whatsapp-float {
+    width: 44px;
+    height: 44px;
+    right: 14px;
+    bottom: 14px;
+  }
+  .project-action-panel {
+    padding: 10px;
+  }
+  .calendar-scroll {
+    max-height: 380px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .project-action-panel {
+    animation: none;
+  }
+  .client-whatsapp-float {
+    transition: none;
+  }
+}
+
+/* HAS Financial reference: 272/86 px, 240 ms, brand switch and account popover. */
+.dashboard:has(> .ws-sidebar) {
+  display: grid;
+  grid-template-columns: 272px minmax(0, 1fr);
+  transition: grid-template-columns 0.24s ease;
+  gap: 0;
+}
+.dashboard:has(> .ws-sidebar.is-collapsed) {
+  grid-template-columns: 86px minmax(0, 1fr);
+}
+.dashboard > aside.ws-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  min-height: 0;
+  width: 272px;
+  padding: 26px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  z-index: 45;
+  border-right: 1px solid #214b72;
+  background:
+    radial-gradient(circle at 20% 8%, #1bb9e225, transparent 32%),
+    linear-gradient(180deg, #071e38, #103e63 55%, #092940);
+  color: white;
+  transition:
+    width 0.24s ease,
+    transform 0.24s ease;
+}
+.dashboard > aside.ws-sidebar.is-collapsed {
+  width: 86px;
+}
+.ws-brand {
+  min-height: 94px;
+  padding: 4px 4px 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.ws-brand > a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 !important;
+  background: transparent !important;
+  color: #fff !important;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ws-logo {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: 0 8px 22px #00172c60;
+}
+.ws-mark {
+  display: none;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  flex: none;
+}
+.ws-brand strong {
+  display: block;
+  font-size: 15px;
+}
+.ws-brand small {
+  display: block;
+  font-size: 11px;
+  color: #91b9d4;
+  margin-top: 4px;
+}
+.ws-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.dashboard .ws-sidebar .ws-nav {
+  width: 100%;
+  padding: 11px 12px;
+  margin: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #adc9de;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  font-size: 14px;
+  white-space: nowrap;
+  min-height: 43px;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+  flex: none;
+  text-decoration: none;
+}
+.ws-nav svg {
+  flex: none;
+  width: 19px;
+}
+.ws-nav span {
+  overflow: hidden;
+}
+.dashboard .ws-sidebar .ws-nav:hover,
+.dashboard .ws-sidebar .ws-nav.active {
+  background: #ffffff12;
+  color: white;
+  transform: none;
+}
+.dashboard .ws-sidebar .ws-nav.active {
+  box-shadow: inset 3px 0 #44c8eb;
+}
+.dashboard .ws-sidebar .ws-collapse {
+  position: absolute;
+  right: -15px;
+  top: 28px;
+  width: 31px;
+  height: 31px;
+  border: 1px solid #397699;
+  border-radius: 9px;
+  background: #103c60;
+  color: #ceeafa;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  z-index: 2;
+  box-shadow: 0 6px 15px #001b3555;
+}
+.ws-sidebar.is-collapsed .ws-brand {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.ws-sidebar.is-collapsed .ws-logo {
+  display: none;
+}
+.ws-sidebar.is-collapsed .ws-mark {
+  display: block;
+}
+.ws-sidebar.is-collapsed .ws-brand span,
+.ws-sidebar.is-collapsed .ws-nav span {
+  display: none;
+}
+.dashboard .ws-sidebar.is-collapsed .ws-nav {
+  justify-content: center;
+  padding: 12px;
+}
+.ws-account {
+  margin-top: auto;
+  padding-top: 14px;
+  flex: none;
+}
+.dashboard .ws-sidebar .ws-profile-trigger {
+  width: 100%;
+  min-height: 58px;
+  margin: 0;
+  padding: 9px 6px;
+  border: 1px solid transparent;
+  border-top-color: #ffffff1c;
+  border-radius: 12px;
+  background: transparent;
+  color: white;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 16px;
+  gap: 9px;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+.dashboard .ws-sidebar .ws-profile-trigger:hover,
+.dashboard .ws-sidebar .ws-profile-trigger[data-state="open"] {
+  background: #ffffff12;
+  border-color: #ffffff17;
+}
+.ws-profile-trigger .account-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #ffffff1f;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.ws-profile-trigger .account-avatar img {
+  width: 38px;
+  height: 38px;
+  object-fit: cover;
+}
+.ws-profile-info {
+  min-width: 0;
+}
+.ws-profile-info strong {
+  display: block;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ws-profile-info small {
+  display: block;
+  margin-top: 2px;
+  color: #ffffff94;
+  font-size: 10px;
+}
+.ws-profile-chevron {
+  transition: transform 0.18s ease;
+}
+.ws-profile-trigger[data-state="open"] .ws-profile-chevron {
+  transform: rotate(180deg);
+}
+.ws-sidebar.is-collapsed .ws-profile-info,
+.ws-sidebar.is-collapsed .ws-profile-chevron {
+  display: none;
+}
+.dashboard .ws-sidebar.is-collapsed .ws-profile-trigger {
+  grid-template-columns: 38px;
+  justify-content: center;
+  padding: 9px 0;
+}
+.ws-profile-popover {
+  z-index: 100;
+  width: 248px;
+  max-width: calc(100vw - 32px);
+  padding: 7px;
+  border: 1px solid #dfe7ed;
+  border-radius: 13px;
+  background: white;
+  box-shadow: 0 14px 36px #072d5029;
+  animation: has-panel-in 0.18s ease;
+  color: #183750;
+}
+.ws-profile-head {
+  padding: 9px 10px 11px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #e8edef;
+  overflow: hidden;
+}
+.ws-profile-head strong {
+  display: block;
+  font-size: 12px;
+}
+.ws-profile-head small {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  color: #748799;
+}
+.ws-profile-popover [role="menuitem"] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+  outline: none;
+  color: #294860;
+}
+.ws-profile-popover [role="menuitem"][data-highlighted] {
+  background: #edf6fc;
+  color: #0b628e;
+}
+.ws-profile-popover [role="separator"] {
+  height: 1px;
+  margin: 5px 0;
+  background: #e8edef;
+}
+.ws-profile-popover .ws-logout {
+  color: #b64040;
+}
+.ws-mobile-open,
+.ws-mobile-close,
+.ws-backdrop {
+  display: none;
+}
+@media (max-width: 900px) {
+  .dashboard:has(> .ws-sidebar),
+  .dashboard:has(> .ws-sidebar.is-collapsed) {
+    display: block;
+    padding-top: 54px;
+  }
+  .dashboard > aside.ws-sidebar,
+  .dashboard > aside.ws-sidebar.is-collapsed {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 272px;
+    height: 100dvh;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 0.24s ease,
+      visibility 0.24s;
+  }
+  .dashboard > aside.ws-sidebar.is-mobile-open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+  .ws-sidebar .ws-collapse {
+    display: none !important;
+  }
+  .ws-mobile-open {
+    position: fixed;
+    top: 10px;
+    left: 14px;
+    display: grid;
+    place-items: center;
+    z-index: 44;
+    width: 38px;
+    height: 36px;
+    border: 1px solid #bbd3e6;
+    border-radius: 9px;
+    background: #fff;
+    color: #123e68;
+    box-shadow: 0 3px 12px #183f6520;
+  }
+  .ws-mobile-close {
+    display: grid;
+    border: 0;
+    background: transparent;
+    color: white;
+    padding: 2px;
+  }
+  .ws-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 44;
+    background: #061e4090;
+    border: 0;
+    backdrop-filter: blur(3px);
+  }
+  .ws-sidebar.is-collapsed .ws-logo {
+    display: block;
+  }
+  .ws-sidebar.is-collapsed .ws-mark {
+    display: none;
+  }
+  .ws-sidebar.is-collapsed .ws-brand span,
+  .ws-sidebar.is-collapsed .ws-nav span,
+  .ws-sidebar.is-collapsed .ws-profile-info,
+  .ws-sidebar.is-collapsed .ws-profile-chevron {
+    display: block;
+  }
+  .dashboard .ws-sidebar.is-collapsed .ws-nav {
+    justify-content: flex-start;
+  }
+  .dashboard .ws-sidebar.is-collapsed .ws-profile-trigger {
+    grid-template-columns: 38px minmax(0, 1fr) 16px;
+    padding: 9px 6px;
+  }
+  .ws-sidebar.is-collapsed .ws-brand {
+    justify-content: flex-start;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard:has(> .ws-sidebar),
+  .dashboard > aside.ws-sidebar,
+  .ws-profile-chevron,
+  .ws-profile-trigger {
+    transition: none;
+  }
+  .ws-profile-popover {
+    animation: none;
+  }
+}
+
+.dashboard > aside.ws-sidebar {
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0;
+}
+.dashboard .ws-sidebar .ws-brand strong,
+.dashboard .ws-sidebar .ws-profile-info strong {
+  display: block;
+}

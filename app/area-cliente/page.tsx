@@ -1,8 +1,7 @@
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
-import SidebarBrand from "@/components/workspace/SidebarBrand";
+import WorkspaceSidebar from "@/components/workspace/WorkspaceSidebar";
 
 import { publicContact } from "@/lib/public-site";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import ClientWorkspace from "@/components/workspace/ClientWorkspace";
@@ -28,33 +27,23 @@ export default async function ClientArea({
     .single();
   return (
     <main className="dashboard client-dashboard">
-      <aside>
-        <SidebarBrand />
-        <small>SEU ESPAÇO DE PESQUISA</small>
-        <Link
-          className={section !== "perfil" ? "active" : ""}
-          href="/area-cliente"
-        >
-          Meu acompanhamento
-        </Link>
-        <Link href="/orcamento/acesso">Solicitar novo orçamento</Link>
-        <div className="sidebar-account">
-          <AccountAccess
-            clientId={user.id}
-            name={data?.full_name ?? "Meu perfil"}
-          />
-        </div>
-        <a
-          className="sidebar-whatsapp"
-          aria-label="Falar com a HAS pelo WhatsApp"
-          title="WhatsApp"
-          href={publicContact.whatsapp}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <WhatsAppIcon size={20} />
-        </a>
-      </aside>
+      <WorkspaceSidebar
+        clientId={user.id}
+        name={data?.full_name ?? "Meu perfil"}
+        active={section === "perfil" ? "perfil" : "acompanhamento"}
+        items={[
+          {
+            id: "acompanhamento",
+            label: "Meu acompanhamento",
+            href: "/area-cliente",
+          },
+          {
+            id: "orcamento",
+            label: "Solicitar orçamento",
+            href: "/orcamento/acesso",
+          },
+        ]}
+      />
       <section>
         <header className="dashboard-hero">
           <span className="eyebrow">Área privada do cliente</span>
@@ -93,6 +82,16 @@ export default async function ClientArea({
           />
         )}
       </section>
+      <a
+        className="client-whatsapp-float"
+        aria-label="Falar com a HAS pelo WhatsApp"
+        title="WhatsApp"
+        href={publicContact.whatsapp}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <WhatsAppIcon size={20} />
+      </a>
     </main>
   );
 }

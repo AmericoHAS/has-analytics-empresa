@@ -175,6 +175,7 @@ export default function ClientBudgetManager({
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
+    setMessage("Salvando orçamento…");
     const f = new FormData(e.currentTarget);
     f.set("clientId", clientId);
     f.set("budgetId", edit?.id ?? "");
@@ -192,6 +193,10 @@ export default function ClientBudgetManager({
         setDetail(null);
         await load();
       }
+    } catch {
+      setMessage(
+        "Falha de comunicação ao salvar. Atualize a página e tente novamente; se persistir, entre novamente na conta.",
+      );
     } finally {
       setBusy(false);
     }
@@ -202,8 +207,9 @@ export default function ClientBudgetManager({
       const f = new FormData();
       f.set("budgetId", b.id);
       f.set("status", value);
-      await updateBudgetStatusAction(f);
-      await load();
+      const result = await updateBudgetStatusAction(f);
+      setMessage(result.message);
+      if (result.success) await load();
     } catch (e) {
       setMessage(
         e instanceof Error ? e.message : "Não foi possível atualizar o status.",
@@ -212,6 +218,7 @@ export default function ClientBudgetManager({
       setBusy(false);
     }
   }
+  const [documentBudget, setDocumentBudget] = useState<string | null>(null);
   const sum = totals(items, discount);
   if (readOnly)
     return <CommercialDocuments clientId={clientId} kind="orcamento" />;
@@ -236,6 +243,14 @@ export default function ClientBudgetManager({
       {open && (
         <form
           onSubmit={save}
+          onInvalid={(e) => {
+            const field = e.target as HTMLInputElement;
+            const details = field.closest("details");
+            if (details) details.open = true;
+            setMessage(
+              `Confira ${field.closest("label")?.textContent?.trim() || "os campos obrigatórios"}: ${field.validationMessage}`,
+            );
+          }}
           className="workspace-card stack"
           key={edit?.id ?? "new"}
         >
@@ -362,6 +377,7 @@ export default function ClientBudgetManager({
                     type="number"
                     min="0"
                     max="10000"
+                    step="0.01"
                     value={hours}
                     onChange={(e) => setHours(Number(e.target.value))}
                   />
@@ -545,6 +561,11 @@ export default function ClientBudgetManager({
             </span>
             <strong>{money(sum.total)}</strong>
           </div>
+          {message && (
+            <p className="action-feedback" role="status">
+              {message}
+            </p>
+          )}
           <button className="btn primary" disabled={busy || !items.length}>
             {busy ? "Salvando…" : "Salvar orçamento"}
           </button>
@@ -569,14 +590,16 @@ export default function ClientBudgetManager({
               <span className="tag">{b.status}</span>
             </div>
           </div>
-          {!readOnly && b.status === "rascunho" && (
-            <p className="workflow-notice">
-              Próximo passo: prepare o PDF abaixo, confira e clique em
-              Disponibilizar ao cliente. Salvar o orçamento não envia o
-              documento.
-            </p>
-          )}
           <div className="actions">
+            <button
+              className="btn primary"
+              aria-expanded={documentBudget === b.id}
+              onClick={() =>
+                setDocumentBudget(documentBudget === b.id ? null : b.id)
+              }
+            >
+              PDF e envio
+            </button>
             <button
               className="btn"
               onClick={async () => {
@@ -631,8 +654,9 @@ export default function ClientBudgetManager({
                     try {
                       const f = new FormData();
                       f.set("budgetId", b.id);
-                      await deleteBudgetAction(f);
-                      await load();
+                      const result = await deleteBudgetAction(f);
+                      setMessage(result.message);
+                      if (result.success) await load();
                     } catch (e) {
                       setMessage(
                         e instanceof Error
@@ -649,17 +673,20 @@ export default function ClientBudgetManager({
               </>
             )}
           </div>
+          {documentBudget === b.id && (
+            <CommercialDocuments
+              key={b.id}
+              clientId={clientId}
+              admin
+              kind="orcamento"
+              budgetId={b.id}
+              compact
+              onChange={load}
+              refreshKey={`${b.total}:${b.status}`}
+            />
+          )}
         </article>
       ))}
-      <CommercialDocuments
-        refreshKey={budgets
-          .map((b) => b.id + ":" + b.total + ":" + b.status)
-          .join("|")}
-        clientId={clientId}
-        admin={!readOnly}
-        kind="orcamento"
-        onChange={load}
-      />
       {detail && (
         <div className="workspace-card stack">
           <div className="row">

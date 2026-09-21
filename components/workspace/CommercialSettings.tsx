@@ -1,4 +1,5 @@
 "use client";
+import DocumentTemplateSettings from "./DocumentTemplateSettings";
 import PaymentSettings from "./PaymentSettings";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -240,6 +241,7 @@ export default function CommercialSettings() {
         </button>
       </form>
       <PaymentSettings />
+      <DocumentTemplateSettings />
     </>
   );
 }

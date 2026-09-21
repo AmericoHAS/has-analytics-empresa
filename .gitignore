@@ -8,3 +8,7 @@ node_modules/
 
 # Arquivo de trabalho com dados reais de clientes; somente templates/has vai ao site.
 /Orçamentos HAS Analytics/
+
+# Referência local da HAS Financial, não integra o aplicativo Analytics.
+/controle_financeiro-has.analytics-main (1)/
+/controle_financeiro-has.analytics-main (1).zip

@@ -156,7 +156,9 @@ export default function BudgetPlanningFields({
                 type="number"
                 min="0"
                 step="0.01"
-                value={Number(values[String(key)] ?? value)}
+                value={
+                  values[String(key)] ?? Math.round(Number(value) * 100) / 100
+                }
                 onChange={(e) =>
                   setValues((current) => ({
                     ...current,

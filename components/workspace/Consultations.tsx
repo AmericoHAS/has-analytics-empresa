@@ -1,5 +1,8 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import ConsultationCalendar from "./ConsultationCalendar";
+import { availabilityError, addDays } from "@/lib/workspace/calendar";
+import { actionError } from "@/lib/workspace/action-errors";
 import { supabase } from "@/lib/supabase";
 type Slot = {
   id: string;
@@ -40,11 +43,23 @@ export default function Consultations({
   admin?: boolean;
   revisionId?: string;
 }) {
+  const selection = useRef<HTMLDivElement>(null);
+  const [opening, setOpening] = useState("");
+  const [selected, setSelected] = useState<Slot | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]),
     [bookings, setBookings] = useState<Booking[]>([]),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
     [project, setProject] = useState(projects[0]?.id ?? "");
+  useEffect(() => {
+    if (opening || selected)
+      selection.current?.scrollIntoView({
+        block: "nearest",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      });
+  }, [opening, selected]);
   const load = useCallback(async () => {
     const [s, b] = await Promise.all([
       supabase.rpc("list_consultation_slots"),
@@ -75,16 +90,19 @@ export default function Consultations({
     };
   }, [load]);
   async function run(
-    action: () => PromiseLike<{ error: { message: string } | null }>,
+    action: () => PromiseLike<{
+      error: { message: string; code?: string } | null;
+    }>,
   ) {
     setBusy(true);
     try {
       const { error } = await action();
-      if (error) throw Error(error.message);
-      setMessage(
-        "Agendamento atualizado. O aviso foi registrado para envio por e-mail.",
-      );
+      if (error) throw Error(actionError(error, "atualizar a agenda"));
+      setMessage("Agenda atualizada com sucesso.");
+      setOpening("");
+      setSelected(null);
       await load();
+      window.dispatchEvent(new Event("has-workflow-updated"));
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Não foi possível concluir.");
     } finally {
@@ -101,35 +119,97 @@ export default function Consultations({
           receber os resultados.
         </p>
       </div>
-      {admin && (
-        <details>
-          <summary>Disponibilizar horário na agenda comum</summary>
-          <form
-            className="form-grid"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              void run(() =>
-                supabase.from("consultation_slots").insert({
-                  starts_at: new Date(
-                    String(f.get("start")) + "-03:00",
-                  ).toISOString(),
-                  ends_at: new Date(
-                    String(f.get("end")) + "-03:00",
-                  ).toISOString(),
-                  mode: f.get("mode"),
-                  location: f.get("location"),
-                }),
-              );
-            }}
-          >
+      <ConsultationCalendar
+        slots={slots}
+        admin={admin}
+        busy={busy}
+        onOpen={(date) => {
+          setOpening(date);
+          setSelected(null);
+          setMessage("");
+        }}
+        onSelect={(slot) => {
+          setSelected(slot);
+          setOpening("");
+          setMessage("");
+        }}
+      />
+      <div ref={selection} />
+      {admin && opening && (
+        <form
+          className="calendar-selection stack"
+          key={opening}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const f = new FormData(e.currentTarget),
+              start = String(f.get("start")),
+              end = String(f.get("end")),
+              minutes = Number(f.get("minutes"));
+            const invalid = availabilityError(start, end, minutes);
+            if (invalid) {
+              setMessage(invalid);
+              return;
+            }
+            void run(() =>
+              supabase.rpc("create_consultation_availability", {
+                p_start: new Date(start + "-03:00").toISOString(),
+                p_end: new Date(end + "-03:00").toISOString(),
+                p_minutes: minutes,
+                p_mode: f.get("mode"),
+                p_location: f.get("location"),
+              }),
+            );
+          }}
+        >
+          <div className="row">
+            <h4>Abrir horários de atendimento</h4>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setOpening("")}
+            >
+              Fechar
+            </button>
+          </div>
+          <div className="form-grid">
             <label>
               Início
-              <input required type="datetime-local" name="start" />
+              <input
+                required
+                type="datetime-local"
+                name="start"
+                defaultValue={opening}
+              />
             </label>
             <label>
               Fim
-              <input required type="datetime-local" name="end" />
+              <input
+                required
+                type="datetime-local"
+                name="end"
+                defaultValue={
+                  Number(opening.slice(11, 13)) === 23
+                    ? addDays(opening.slice(0, 10), 1) +
+                      "T00:" +
+                      opening.slice(14)
+                    : opening.slice(0, 11) +
+                      String(Number(opening.slice(11, 13)) + 1).padStart(
+                        2,
+                        "0",
+                      ) +
+                      opening.slice(13)
+                }
+              />
+            </label>
+            <label>
+              Duração de cada reunião
+              <select name="minutes" defaultValue="60">
+                {[15, 30, 45, 60, 90, 120].map((n) => (
+                  <option key={n} value={n}>
+                    {n} minutos
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               Modalidade
@@ -139,14 +219,18 @@ export default function Consultations({
               </select>
             </label>
             <label>
-              Local presencial
+              Local (obrigatório para presencial)
               <input name="location" maxLength={500} />
             </label>
-            <button className="btn" disabled={busy}>
-              Abrir horário
-            </button>
-          </form>
-        </details>
+          </div>
+          <p className="muted">
+            O período será dividido em reuniões da duração escolhida. Exemplo:
+            9h às 12h → três horários de uma hora.
+          </p>
+          <button className="btn primary" disabled={busy}>
+            {busy ? "Salvando…" : "Disponibilizar horários"}
+          </button>
+        </form>
       )}
       {!admin && (
         <label>
@@ -161,50 +245,67 @@ export default function Consultations({
           </select>
         </label>
       )}
-      <p role="status">{message}</p>
-      <div className="consultation-slots">
-        {slots.map((s) => (
-          <article key={s.id} className={s.busy ? "slot busy" : "slot"}>
-            <strong>{when(s.starts_at)}</strong>
-            <span>{s.mode === "online" ? "Online" : s.location}</span>
-            <small>{s.busy ? "Horário reservado" : "Disponível"}</small>
-            {admin ? (
-              !s.busy && (
-                <button
-                  className="btn"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(() =>
-                      supabase
-                        .from("consultation_slots")
-                        .update({ enabled: false })
-                        .eq("id", s.id),
-                    )
-                  }
-                >
-                  Fechar horário
-                </button>
+      {message && (
+        <p className="action-feedback" role="status">
+          {message}
+        </p>
+      )}
+      {selected && (
+        <div className="calendar-selection stack">
+          <div className="row">
+            <strong>{when(selected.starts_at)}</strong>
+            <button className="btn" onClick={() => setSelected(null)}>
+              Fechar
+            </button>
+          </div>
+          <p>
+            {selected.mode === "online"
+              ? "Online — Google Meet"
+              : selected.location}
+          </p>
+          {selected.busy ? (
+            <p>
+              Horário reservado.
+              {bookings.some(
+                (b) => b.slot_id === selected.id && b.status !== "cancelado",
               )
-            ) : (
-              <button
-                className="btn"
-                disabled={busy || s.busy || !project}
-                onClick={() =>
-                  void run(() =>
-                    supabase.rpc("book_consultation", {
-                      p_slot: s.id,
-                      p_project: project,
-                      p_revision: revisionId ?? null,
-                    }),
-                  )
-                }
-              >
-                Agendar
-              </button>
-            )}
-          </article>
-        ))}
-      </div>
+                ? " Consulte os detalhes abaixo."
+                : " Escolha um horário disponível."}
+            </p>
+          ) : admin ? (
+            <button
+              className="btn"
+              disabled={busy}
+              onClick={() =>
+                void run(() =>
+                  supabase
+                    .from("consultation_slots")
+                    .update({ enabled: false })
+                    .eq("id", selected.id),
+                )
+              }
+            >
+              Fechar horário disponível
+            </button>
+          ) : (
+            <button
+              className="btn primary"
+              disabled={busy || !project}
+              onClick={() =>
+                void run(() =>
+                  supabase.rpc("book_consultation", {
+                    p_slot: selected.id,
+                    p_project: project,
+                    p_revision: revisionId ?? null,
+                  }),
+                )
+              }
+            >
+              {busy ? "Agendando…" : "Confirmar solicitação de reunião"}
+            </button>
+          )}
+        </div>
+      )}
       {!slots.length && <p>Nenhum horário aberto neste momento.</p>}
       {bookings
         .filter((b) => b.status !== "cancelado")

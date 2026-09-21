@@ -77,3 +77,8 @@ A pasta original `Orçamentos HAS Analytics` contém também documentos preenchi
 ## Desenvolvimento local nesta máquina
 
 A extração de dependências npm na unidade H: (Google Drive) retornou erros de escrita `TAR_ENTRY_ERROR` / `EBADF` e foi interrompida. Os 53 arquivos salvos foram conferidos por hash e permanecem íntegros. A compilação e os testes passaram em cópia local fora do Drive, com configuração fictícia. Para executar o site localmente, use uma cópia em disco local fora da sincronização e rode `npm ci` com Node 22. Na Vercel, a instalação usa o `package-lock.json` atualizado e não depende da pasta `node_modules` de H:.
+
+
+## Correção incremental de 21/09/2026
+
+Se este setup já foi executado, aplique somente `supabase/CORRIGIR-OPERACOES.sql` e publique a nova versão. Veja `CORRECOES-ATENDIMENTO.md`. Os arquivos cumulativos já incluem essa correção para novas instalações.

@@ -2,17 +2,22 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { UserRound, Settings } from "lucide-react";
+import { UserRound, Settings, ChevronUp, LogOut } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { DropdownMenu } from "radix-ui";
 import SignOut from "./SignOut";
 export default function AccountAccess({
   clientId,
   name,
   settings = false,
+  admin = false,
+  onProfile,
 }: {
   clientId: string;
   name: string;
   settings?: boolean;
+  admin?: boolean;
+  onProfile?: () => void;
 }) {
   const [whatsapp, setWhatsapp] = useState(false),
     [phone, setPhone] = useState("");
@@ -62,17 +67,78 @@ export default function AccountAccess({
   );
   if (!settings)
     return (
-      <Link className="account-access" href="/area-cliente?secao=perfil">
-        {avatar}
-        <span>
-          <strong>{name}</strong>
-          <small>Perfil e configurações</small>
-        </span>
-        <Settings size={17} />
-      </Link>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger
+          className="ws-profile-trigger"
+          aria-label={`Perfil e configurações de ${name}`}
+        >
+          {avatar}
+          <span className="ws-profile-info">
+            <strong>{name}</strong>
+            <small>Minha conta</small>
+          </span>
+          <ChevronUp className="ws-profile-chevron" size={16} />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            className="ws-profile-popover"
+            side="top"
+            align="start"
+            sideOffset={10}
+            collisionPadding={12}
+          >
+            <div className="ws-profile-head">
+              <strong>{name}</strong>
+              <small>{admin ? "Administrador" : "Cliente HAS Analytics"}</small>
+            </div>
+            {onProfile ? (
+              <DropdownMenu.Item onSelect={onProfile}>
+                <UserRound size={17} />
+                Meu perfil e dados
+              </DropdownMenu.Item>
+            ) : (
+              <DropdownMenu.Item asChild>
+                <Link href="/area-cliente?secao=perfil">
+                  <UserRound size={17} />
+                  Meu perfil e dados
+                </Link>
+              </DropdownMenu.Item>
+            )}
+            {onProfile ? (
+              <DropdownMenu.Item onSelect={onProfile}>
+                <Settings size={17} />
+                Configurações da conta
+              </DropdownMenu.Item>
+            ) : (
+              <DropdownMenu.Item asChild>
+                <Link href="/area-cliente?secao=perfil#configuracoes">
+                  <Settings size={17} />
+                  Configurações da conta
+                </Link>
+              </DropdownMenu.Item>
+            )}
+            <DropdownMenu.Separator />
+            <DropdownMenu.Item
+              className="ws-logout"
+              onSelect={async () => {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                  setMessage("Não foi possível sair. Tente novamente.");
+                  return;
+                }
+                location.href = "/login";
+              }}
+            >
+              <LogOut size={17} />
+              Sair da conta
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+        {message && <p role="alert">{message}</p>}
+      </DropdownMenu.Root>
     );
   return (
-    <section className="workspace-card account-settings">
+    <section id="configuracoes" className="workspace-card account-settings">
       <div className="row">
         {avatar}
         <div>
@@ -136,16 +202,14 @@ export default function AccountAccess({
           onSubmit={async (e) => {
             e.preventDefault();
             setBusy(true);
-            const { error } = await supabase
-              .from("account_preferences")
-              .upsert(
-                {
-                  client_id: clientId,
-                  whatsapp_opt_in: whatsapp,
-                  whatsapp_number: phone,
-                },
-                { onConflict: "client_id" },
-              );
+            const { error } = await supabase.from("account_preferences").upsert(
+              {
+                client_id: clientId,
+                whatsapp_opt_in: whatsapp,
+                whatsapp_number: phone,
+              },
+              { onConflict: "client_id" },
+            );
             setMessage(
               error
                 ? "Não foi possível salvar. Use o número no formato +5544999999999."
