@@ -128,13 +128,15 @@ export async function renderCommercial(s: DocumentSnapshot) {
       ? `Observações da proposta: ${s.budget.notes}`
       : "",
     s.kind === "orcamento"
-      ? "ACEITE DO CLIENTE\nNome: " +
-        s.client.legal_name +
-        " | CPF/CNPJ: " +
-        s.client.tax_id +
-        "\nAssinatura: __________________________________________"
-      : "",
-    `Versão ${s.reference} | Emitido em ${s.created}`,
+  ? "ACEITE DO CLIENTE\n\n" +
+    "Nome: " +
+    s.client.legal_name +
+    "\nCPF/CNPJ: " +
+    s.client.tax_id +
+    "\n\n\n" +
+    "Assinatura: ______________________________________________"
+  : "",
+   `\nVersão ${s.reference} | Emitido em ${s.created}`,
   ]
     .filter(Boolean)
     .join("\n");
