@@ -38,6 +38,7 @@ function fixture(error = null, role = "admin", rpcData = true) {
     "@/lib/supabase/server": { createClient: async () => db },
     "next/cache": { revalidatePath: () => {} },
     "@/lib/workspace/action-errors": actionError,
+    "@/lib/commercial/budget-input": load("lib/commercial/budget-input.ts", {}),
   };
   return {
     calls,

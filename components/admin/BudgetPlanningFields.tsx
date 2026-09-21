@@ -93,14 +93,17 @@ export default function BudgetPlanningFields({
         </select>
       </label>
       {selected && (
-        <dl className="form-grid">
-          {intakeFields.map(([key, label]) => (
-            <div key={key}>
-              <dt>{label}</dt>
-              <dd>{selected.intake?.[key] || "A definir"}</dd>
-            </div>
-          ))}
-        </dl>
+        <details>
+          <summary>Consultar dados da solicitação original</summary>
+          <dl className="form-grid">
+            {intakeFields.map(([key, label]) => (
+              <div key={key}>
+                <dt>{label}</dt>
+                <dd>{selected.intake?.[key] || "A definir"}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
       )}
       <div className="form-grid">
         <label>
@@ -117,11 +120,12 @@ export default function BudgetPlanningFields({
         </label>
       </div>
       <details>
-        <summary>Planejamento interno (opcional)</summary>
+        <summary>Anotações internas · opcional</summary>
         <p className="muted">
-          Somente administração: os campos abaixo não aparecem nos documentos do
-          cliente. Base, horas e acréscimos registram a memória do cálculo; o
-          total é calculado pelos itens e desconto.
+          Não é necessário preencher para salvar ou gerar o orçamento. Estes
+          campos não aparecem nos documentos do cliente. Base, horas e
+          acréscimos registram a memória do cálculo; o total é calculado pelos
+          itens e desconto.
         </p>
         <div className="form-grid">
           {[

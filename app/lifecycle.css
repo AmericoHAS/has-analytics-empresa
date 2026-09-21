@@ -944,3 +944,59 @@ select {
 .dashboard .ws-sidebar .ws-profile-info strong {
   display: block;
 }
+
+/* Keep scrolling accessible without the visible track on collapsed Admin nav. */
+.dashboard.admin .ws-sidebar.is-collapsed nav {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.dashboard.admin .ws-sidebar.is-collapsed nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.payment-preview {
+  background: #f0f7fc;
+  border: 1px solid #cfe3f2;
+  border-radius: 16px;
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+}
+.payment-preview h3 {
+  margin: 4px 0 8px;
+  font-size: 1.05rem;
+}
+.payment-preview p,
+.payment-preview > small {
+  font-weight: 400;
+  color: #526c81;
+  margin: 0;
+  font-size: 0.88rem;
+}
+.payment-preview-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.payment-preview-options article {
+  background: white;
+  border: 1px solid #d9e6ef;
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  gap: 5px;
+}
+.payment-preview-options article > span {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.payment-preview-options strong {
+  font-size: 1.25rem;
+  color: #104b73;
+}
+.payment-preview-options small {
+  font-weight: 400;
+  color: #63798c;
+  font-size: 0.75rem;
+}

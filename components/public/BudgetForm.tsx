@@ -34,7 +34,9 @@ export function BudgetForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...Object.fromEntries(data),
-          intake: Object.fromEntries(intakeFields.map(([key]) => [key, String(data.get(key) ?? "")])),
+          intake: Object.fromEntries(
+            intakeFields.map(([key]) => [key, String(data.get(key) ?? "")]),
+          ),
           id: requestId.current,
           consent: data.get("consent") === "on",
         }),
@@ -94,80 +96,93 @@ export function BudgetForm({
     <form className="budget-form" onSubmit={submit} aria-busy={busy}>
       <h2>Conte um pouco sobre sua ideia.</h2>
       <p>Os campos marcados com * são obrigatórios.</p>
-      <div className="budget-fields">
+      <fieldset className="request-group">
+        <legend>01 · Seu contato</legend>
+        <div className="budget-fields">
+          <label>
+            Seu nome *
+            <input
+              name="name"
+              autoComplete="name"
+              minLength={2}
+              maxLength={120}
+              required
+            />
+          </label>
+          <label>
+            E-mail *
+            <input
+              name="email"
+              type="email"
+              autoComplete="email"
+              maxLength={254}
+              required
+            />
+          </label>
+        </div>
+        <div className="budget-fields">
+          <label>
+            WhatsApp (opcional)
+            <input
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              placeholder="(44) 99955-4888"
+              maxLength={30}
+            />
+          </label>
+        </div>
+      </fieldset>
+      <fieldset className="request-group">
+        <legend>02 · Sua demanda</legend>
+        <div className="budget-fields">
+          <label>
+            O que você precisa? *
+            <select
+              name="service_type"
+              defaultValue={budgetServices[initialService] ?? budgetServices[4]}
+              required
+            >
+              {budgetServices.map((service) => (
+                <option key={service}>{service}</option>
+              ))}
+            </select>
+          </label>
+        </div>
         <label>
-          Seu nome *
+          Nome ou assunto do projeto *
           <input
-            name="name"
-            autoComplete="name"
-            minLength={2}
-            maxLength={120}
+            name="title"
+            placeholder="Ex.: análise dos dados da minha pesquisa"
             required
+            minLength={5}
+            maxLength={180}
           />
         </label>
         <label>
-          E-mail *
-          <input
-            name="email"
-            type="email"
-            autoComplete="email"
-            maxLength={254}
+          Em que podemos ajudar? *
+          <textarea
+            name="description"
+            placeholder="Conte seu objetivo, a etapa atual, os dados disponíveis ou as funcionalidades que imagina. Se houver um prazo, explique o contexto."
             required
-          />
-        </label>
-      </div>
-      <div className="budget-fields">
-        <label>
-          WhatsApp (opcional)
-          <input
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            placeholder="(44) 99955-4888"
-            maxLength={30}
+            minLength={30}
+            maxLength={5000}
           />
         </label>
         <label>
-          O que você precisa? *
-          <select
-            name="service_type"
-            defaultValue={budgetServices[initialService] ?? budgetServices[4]}
-            required
-          >
-            {budgetServices.map((service) => (
-              <option key={service}>{service}</option>
-            ))}
-          </select>
+          Data desejada para a entrega (opcional)
+          <input name="desired_date" type="date" />
+          <small className="muted">
+            O prazo será confirmado após a avaliação do escopo.
+          </small>
         </label>
-      </div>
-      <label>
-        Nome ou assunto do projeto *
-        <input
-          name="title"
-          placeholder="Ex.: análise dos dados da minha pesquisa"
-          required
-          minLength={5}
-          maxLength={180}
-        />
-      </label>
-      <label>
-        Em que podemos ajudar? *
-        <textarea
-          name="description"
-          placeholder="Conte seu objetivo, a etapa atual, os dados disponíveis ou as funcionalidades que imagina. Se houver um prazo, explique o contexto."
-          required
-          minLength={30}
-          maxLength={5000}
-        />
-      </label>
-      <label>
-        Data desejada para a entrega (opcional)
-        <input name="desired_date" type="date" />
-        <small className="muted">
-          O prazo será confirmado após a avaliação do escopo.
-        </small>
-      </label>
-      <IntakeFields />
+      </fieldset>
+      <details className="request-extra">
+        <summary>
+          Detalhes complementares <span>Opcional</span>
+        </summary>
+        <IntakeFields />
+      </details>
       <div className="access-note">
         <strong>Orçamento + solicitação de acesso</strong>Este pedido também
         inicia seu atendimento para a área do cliente. A conta será liberada

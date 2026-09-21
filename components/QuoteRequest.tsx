@@ -106,7 +106,9 @@ export default function QuoteRequest() {
     try {
       const { error } = await supabase.rpc("submit_quote_request_v2", {
         p_request_id: requestId,
-        p_intake: Object.fromEntries(intakeFields.map(([key]) => [key, String(form.get(key) ?? "")])),
+        p_intake: Object.fromEntries(
+          intakeFields.map(([key]) => [key, String(form.get(key) ?? "")]),
+        ),
         p_name: String(form.get("name") ?? "").trim(),
         p_phone: String(form.get("phone") ?? "").trim(),
         p_service: String(form.get("service")),
@@ -244,27 +246,39 @@ export default function QuoteRequest() {
     );
   return (
     <form className="quote-form" onSubmit={submit}>
-      <span className="eyebrow">02 · Conte seu projeto</span>
+      <div className="request-form-heading">
+        <span className="eyebrow">Solicitação de orçamento</span>
+        <h2>Conte seu projeto</h2>
+        <p>
+          Preencha o essencial. Os detalhes complementares podem ser definidos
+          depois.
+        </p>
+      </div>
       <p>
         Conectado como <strong>{email}</strong>
       </p>
       <fieldset disabled={busy}>
-        <legend>Informações para a proposta</legend>
-        <label>
-          Nome completo
-          <input
-            name="name"
-            defaultValue={name}
-            required
-            minLength={2}
-            maxLength={150}
-            autoComplete="name"
-          />
-        </label>
-        <label>
-          WhatsApp (opcional)
-          <input name="phone" type="tel" maxLength={30} autoComplete="tel" />
-        </label>
+        <legend>01 · Seu contato</legend>
+        <div className="request-field-grid">
+          <label>
+            Nome completo
+            <input
+              name="name"
+              defaultValue={name}
+              required
+              minLength={2}
+              maxLength={150}
+              autoComplete="name"
+            />
+          </label>
+          <label>
+            WhatsApp (opcional)
+            <input name="phone" type="tel" maxLength={30} autoComplete="tel" />
+          </label>
+        </div>
+      </fieldset>
+      <fieldset disabled={busy}>
+        <legend>02 · Sua demanda</legend>
         <label>
           Como podemos ajudar?
           <select name="service" required>
@@ -300,16 +314,25 @@ export default function QuoteRequest() {
             min={new Date().toLocaleDateString("en-CA")}
           />
         </label>
+      </fieldset>
+      <details className="request-extra">
+        <summary>
+          03 · Detalhes complementares <span>Opcional</span>
+        </summary>
+        <fieldset disabled={busy} className="request-additional">
+          <IntakeFields />
+        </fieldset>
+      </details>
+      <div className="request-submit">
         <label className="choice">
           <input type="checkbox" required />
           Autorizo o uso dessas informações para avaliar minha solicitação e
           entrar em contato sobre o projeto.
         </label>
-        <IntakeFields />
-      <button className="btn primary" disabled={busy}>
+        <button className="btn primary" disabled={busy}>
           {busy ? "Enviando…" : "Enviar solicitação de orçamento ↗"}
         </button>
-      </fieldset>
+      </div>
       {message && (
         <p className="form-message" role="status">
           {message}

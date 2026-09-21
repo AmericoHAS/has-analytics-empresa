@@ -12,10 +12,11 @@ import {
   type CommercialModel,
 } from "@/lib/commercial/model";
 import {
-  createBudgetAction,
-  updateBudgetStatusAction,
-  deleteBudgetAction,
-} from "@/app/admin/budget-actions";
+  saveBudget,
+  archiveBudget,
+  changeBudgetStatus,
+} from "@/lib/workspace/budget-operations";
+import PaymentPreview from "@/components/workspace/PaymentPreview";
 type Item = { description: string; quantity: number; unitPrice: number };
 type Budget = {
   publication_partnership?: boolean;
@@ -183,14 +184,13 @@ export default function ClientBudgetManager({
     f.set("discountPercent", String(discount));
     f.set("publicationPartnership", String(partnership));
     try {
-      const result = await createBudgetAction(
-        { success: false, message: "" },
-        f,
-      );
+      const result = await saveBudget(supabase, f);
       setMessage(result.message);
       if (result.success) {
         setOpen(false);
         setDetail(null);
+        if (result.id) setDocumentBudget(result.id);
+        window.dispatchEvent(new Event("has-workflow-updated"));
         await load();
       }
     } catch {
@@ -204,10 +204,7 @@ export default function ClientBudgetManager({
   async function status(b: Budget, value: string) {
     setBusy(true);
     try {
-      const f = new FormData();
-      f.set("budgetId", b.id);
-      f.set("status", value);
-      const result = await updateBudgetStatusAction(f);
+      const result = await changeBudgetStatus(supabase, b.id, value);
       setMessage(result.message);
       if (result.success) await load();
     } catch (e) {
@@ -536,6 +533,7 @@ export default function ClientBudgetManager({
             Observações e pagamento
             <textarea name="notes" defaultValue={edit?.notes ?? model.notes} />
           </label>
+          <PaymentPreview total={sum.total} />
           <BudgetPlanningFields
             source={source}
             key={edit?.id ?? source?.id ?? "planning"}
@@ -652,9 +650,7 @@ export default function ClientBudgetManager({
                       return;
                     setBusy(true);
                     try {
-                      const f = new FormData();
-                      f.set("budgetId", b.id);
-                      const result = await deleteBudgetAction(f);
+                      const result = await archiveBudget(supabase, b.id);
                       setMessage(result.message);
                       if (result.success) await load();
                     } catch (e) {

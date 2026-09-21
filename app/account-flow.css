@@ -108,3 +108,253 @@
     padding-top: 35px;
   }
 }
+
+/* Solicitação: seções claras, leitura leve e campos sem negrito excessivo. */
+.quote-page {
+  background: linear-gradient(135deg, #edf6fc, #f8fbfd);
+  padding: 56px 0 72px;
+}
+.quote-grid {
+  grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: 48px;
+}
+.quote-page h1 {
+  font-size: clamp(2rem, 3.3vw, 3.3rem);
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  max-width: 520px;
+}
+.quote-page p,
+.quote-steps li {
+  font-weight: 400;
+  color: #60768a;
+  line-height: 1.7;
+}
+.quote-steps {
+  display: grid;
+  gap: 18px;
+  padding-left: 24px;
+}
+.quote-steps strong {
+  display: block;
+  font-weight: 600;
+  color: #153c5c;
+  margin-bottom: 4px;
+}
+.quote-form,
+.budget-form {
+  background: #fff;
+  border: 1px solid #dce8f1;
+  border-radius: 24px;
+  padding: clamp(20px, 3vw, 36px);
+  box-shadow: 0 16px 48px #123d6710;
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+.quote-form h2,
+.budget-form h2 {
+  font-size: 1.55rem;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  margin: 5px 0 8px;
+  font-weight: 650;
+}
+.quote-form p,
+.budget-form p {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 400;
+  color: #60768a;
+}
+.quote-form label,
+.budget-form label {
+  font-weight: 500;
+  font-size: 0.88rem;
+  color: #294d69;
+  display: grid;
+  gap: 7px;
+}
+.quote-form input,
+.quote-form select,
+.quote-form textarea,
+.budget-form input,
+.budget-form select,
+.budget-form textarea {
+  font-weight: 400;
+  font-size: 0.94rem;
+  color: #193c58;
+  background: #fbfdff;
+  border: 1px solid #cddde9;
+  border-radius: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 13px;
+  outline: none;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
+}
+.quote-form input:focus,
+.quote-form select:focus,
+.quote-form textarea:focus,
+.budget-form input:focus,
+.budget-form select:focus,
+.budget-form textarea:focus {
+  border-color: #199ccb;
+  box-shadow: 0 0 0 3px #199ccb18;
+  background: white;
+}
+.quote-form textarea,
+.budget-form textarea {
+  min-height: 135px;
+  resize: vertical;
+}
+.quote-form small,
+.budget-form small {
+  font-weight: 400;
+  color: #788a9b;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.quote-form fieldset,
+.budget-form fieldset.request-group {
+  border: 0;
+  border-top: 1px solid #e4edf4;
+  margin: 0;
+  padding: 22px 0 0;
+  display: grid;
+  gap: 17px;
+  min-width: 0;
+}
+.quote-form legend,
+.budget-form legend {
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: #1379a3;
+  padding: 0 12px 0 0;
+}
+.request-field-grid,
+.budget-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.quote-form .request-additional {
+  background: #f5f9fc;
+  border: 1px solid #e2ebf2;
+  border-radius: 14px;
+  padding: 18px;
+}
+.quote-form .request-additional .intake-fields {
+  border: 0;
+  padding: 0;
+}
+.quote-form .request-additional .intake-fields > legend {
+  display: none;
+}
+.request-extra {
+  border: 1px solid #e2ebf2;
+  border-radius: 14px;
+  padding: 16px;
+  background: #f5f9fc;
+}
+.request-extra summary {
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: #294d69;
+}
+.request-extra summary span {
+  font-size: 0.72rem;
+  color: #71899a;
+  margin-left: 8px;
+}
+.request-extra .intake-fields {
+  border: 0;
+  padding: 18px 0 0;
+}
+.request-extra .intake-fields > legend {
+  display: none;
+}
+.request-submit {
+  display: grid;
+  gap: 18px;
+}
+.quote-form label.choice,
+.budget-form label.consent {
+  display: flex;
+  align-items: flex-start;
+  font-weight: 400;
+  line-height: 1.6;
+  font-size: 0.8rem;
+  color: #60768a;
+  gap: 10px;
+}
+.quote-form .choice input,
+.budget-form .consent input {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  margin-top: 4px;
+  accent-color: #158caf;
+}
+.quote-form .btn.primary,
+.budget-form .btn.primary {
+  font-weight: 600;
+  min-height: 48px;
+}
+.quote-form .form-message,
+.budget-form .form-message {
+  background: #edf7ff;
+  padding: 12px;
+  border-radius: 10px;
+  color: #185979;
+}
+@media (max-width: 800px) {
+  .quote-grid {
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+  .quote-page {
+    padding: 30px 0 42px;
+  }
+  .quote-steps {
+    display: none;
+  }
+  .quote-page h1 {
+    font-size: 2.1rem;
+  }
+  .request-field-grid,
+  .budget-fields {
+    grid-template-columns: 1fr;
+  }
+  .quote-form,
+  .budget-form {
+    border-radius: 18px;
+    padding: 22px;
+  }
+  .intake-fields .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quote-form .intake-fields > .form-grid,
+.budget-form .intake-fields > .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.quote-form .request-extra .request-additional {
+  border: 0;
+  background: transparent;
+  padding: 18px 0 0;
+}
+@media (max-width: 600px) {
+  .quote-form .intake-fields > .form-grid,
+  .budget-form .intake-fields > .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
