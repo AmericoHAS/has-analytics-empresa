@@ -69,7 +69,7 @@ export async function hasTemplatePdf(word: Buffer, kind: TemplateKind) {
   const zip = await JSZip.loadAsync(word);
   const watermark = await zip
     .file(
-      kind === "contrato" ? "word/media/image1.png" : "word/media/image2.png",
+      kind === "contrato" ? "word/media/image1.png" : "word/media/image3.png",
     )
     ?.async("base64");
   const local =
