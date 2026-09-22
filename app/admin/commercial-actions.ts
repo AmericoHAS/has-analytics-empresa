@@ -94,6 +94,10 @@ export async function generateCommercialDocument(form: FormData) {
       .eq("id", input.budgetId)
       .single();
     if (be || !b) throw Error("Orçamento não encontrado.");
+    if (b.archived_at)
+      throw Error(
+        "Orçamento arquivado: consulte os documentos já gerados no histórico.",
+      );
     if (input.kind === "contrato" && b.status !== "aprovado")
       throw Error("O orçamento precisa estar aprovado para gerar contrato.");
     const [
@@ -117,8 +121,15 @@ export async function generateCommercialDocument(form: FormData) {
         .eq("budget_id", b.id)
         .order("display_order"),
     ]);
-    if (ce || !client || !billingSchema.safeParse(client).success)
-      throw Error("Complete primeiro os dados do cliente na aba Cadastro.");
+    const documentClient = b.client_details ?? client;
+    if (
+      (!b.client_details && ce) ||
+      !documentClient ||
+      !billingSchema.safeParse(documentClient).success
+    )
+      throw Error(
+        "Revise os dados do cliente em Editar orçamento (nome, CPF/CNPJ, contato e endereço) e salve antes de gerar.",
+      );
     if (pe || !provider || ie || !items?.length)
       throw Error("Confira o modelo e os itens do orçamento.");
     if (
@@ -198,7 +209,7 @@ export async function generateCommercialDocument(form: FormData) {
         created: new Date().toLocaleDateString("pt-BR", {
           timeZone: "America/Sao_Paulo",
         }),
-        client: billingSchema.parse(client),
+        client: billingSchema.parse(documentClient),
         provider: {
           provider_name: provider.provider_name,
           provider_tax_id: provider.provider_tax_id,
@@ -239,11 +250,11 @@ export async function generateCommercialDocument(form: FormData) {
             : "",
           installments: String(chosen?.option?.installments ?? 1),
           projectTitle: b.title,
-          department: planning?.department ?? "",
-          requestText: request?.description ?? b.description ?? "",
+          department: planning?.department || documentClient.institution || "",
+          requestText: b.description || request?.description || "",
           revisions: input.revisions,
           forumCity: input.forumCity,
-          signatureCity: client.city,
+          signatureCity: documentClient.city,
           pixKey: settings?.pix_key ?? "",
           paymentInstructions: settings?.instructions ?? "",
           paymentLink: input.paymentLink,

@@ -104,6 +104,12 @@ export default function Receipts({
                   const r = await publishCommercial(d.id, true);
                   setMessage(r.message);
                   setVersion((v) => v + 1);
+                  if (r.success)
+                    window.dispatchEvent(new Event("has-workflow-updated"));
+                } catch {
+                  setMessage(
+                    "Não foi possível confirmar o envio do recibo. Atualize para conferir.",
+                  );
                 } finally {
                   setBusy(false);
                 }

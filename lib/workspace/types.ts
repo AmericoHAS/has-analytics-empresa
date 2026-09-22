@@ -12,6 +12,8 @@ export type AnalysisProject = {
   stage: string;
   deliverables: string | null;
   client_due_date: string | null;
+  analysis_completed_at: string | null;
+  archived_at: string | null;
 };
 export type Task = {
   id: string;
@@ -43,11 +45,12 @@ export type Doc = {
   uploader_role: string;
   original_name: string | null;
   file_size: number | null;
+  is_visible: boolean;
   requires_signature: boolean;
   signed_at: string | null;
 };
 export const projectColumns =
-  "id,client_id,title,description,status,progress,start_date,due_date,created_at,updated_at,stage,deliverables,client_due_date";
+  "id,client_id,title,description,status,progress,start_date,due_date,created_at,updated_at,stage,deliverables,client_due_date,analysis_completed_at,archived_at";
 export const stages = [
   "Recebimento e escopo",
   "Organização do banco",

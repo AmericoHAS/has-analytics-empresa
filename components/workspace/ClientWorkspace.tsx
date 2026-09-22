@@ -62,8 +62,13 @@ export default function ClientWorkspace({
         else setProjects(data ?? []);
         setLoading(false);
       });
-    const timer = setInterval(() => void load(), 60000);
-    return () => clearInterval(timer);
+    const refresh = () => void load();
+    window.addEventListener("has-workflow-updated", refresh);
+    const timer = setInterval(refresh, 30000);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("has-workflow-updated", refresh);
+    };
   }, [load, clientId]);
   return (
     <div className="stack">
@@ -87,7 +92,9 @@ export default function ClientWorkspace({
               <strong>
                 {
                   projects.filter(
-                    (p) => !["concluido", "cancelado"].includes(p.status),
+                    (p) =>
+                      !p.archived_at &&
+                      !["concluido", "cancelado"].includes(p.status),
                   ).length
                 }
               </strong>

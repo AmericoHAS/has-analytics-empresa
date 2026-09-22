@@ -13,12 +13,14 @@ export function useLifecycle(clientId: string, projectId?: string) {
   >([]);
   useEffect(() => {
     let alive = true;
+    let sequence = 0;
     async function load() {
+      const request = ++sequence;
       const { data, error } = await supabase.rpc("client_lifecycle", {
         p_client: clientId,
         p_project: projectId ?? null,
       });
-      if (!error && alive)
+      if (!error && alive && request === sequence)
         setItems(
           (data ?? []).map(
             (p: { id: string; title: string; facts: LifecycleFacts }) => ({
@@ -31,10 +33,12 @@ export function useLifecycle(clientId: string, projectId?: string) {
     void load();
     const t = setInterval(() => void load(), 15000);
     window.addEventListener("has-workflow-updated", load);
+    window.addEventListener("focus", load);
     return () => {
       alive = false;
       clearInterval(t);
       window.removeEventListener("has-workflow-updated", load);
+      window.removeEventListener("focus", load);
     };
   }, [clientId, projectId]);
   return items;

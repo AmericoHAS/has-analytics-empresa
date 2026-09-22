@@ -6,11 +6,11 @@ export function actionError(
   if (code === "P0001")
     return error.message || `Não foi possível ${operation}.`;
   if (["PGRST202", "PGRST204", "42883", "42703", "42P01"].includes(code))
-    return `O banco está com uma versão diferente do site. Execute supabase/CORRIGIR-OPERACOES.sql desta atualização e tente ${operation} novamente. (${code})`;
+    return `O banco está com uma versão diferente do site. Execute supabase/REVISAO-FINAL.sql desta atualização e tente ${operation} novamente. (${code})`;
   if (code === "23503")
-    return `Não foi possível ${operation}: há registros vinculados. A correção em supabase/CORRIGIR-OPERACOES.sql preserva os documentos e ajusta esses vínculos. Se persistir, informe o código 23503.`;
+    return `Não foi possível ${operation}: há registros vinculados. Preserve o histórico usando arquivamento. Se persistir, informe o código 23503.`;
   if (code === "23514")
-    return `Não foi possível ${operation}: uma regra do banco recusou os dados. Confira os campos e aplique supabase/CORRIGIR-OPERACOES.sql. (${code})`;
+    return `Não foi possível ${operation}: uma regra do banco recusou os dados. Confira os campos, as datas e a duração informados. (${code})`;
   if (code === "42501")
     return "Sua sessão não tem permissão administrativa para esta operação. Entre novamente com a conta do administrador.";
   if (code === "23505")

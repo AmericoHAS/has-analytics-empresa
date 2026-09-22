@@ -800,24 +800,6 @@
   opacity: 1;
   transform: none;
 }
-.public-site.motion-paused * {
-  animation-play-state: paused !important;
-  scroll-behavior: auto !important;
-}
-.public-site.motion-paused [data-reveal] {
-  opacity: 1;
-  transform: none;
-  transition: none;
-}
-.public-site.motion-paused .social-window {
-  overflow-x: auto;
-}
-.public-site.motion-paused .social-track {
-  animation: none;
-}
-.public-site.motion-paused .social-group[aria-hidden="true"] {
-  display: none;
-}
 .budget-hero {
   padding: 70px 0 !important;
 }
@@ -1001,9 +983,6 @@
 }
 .request-message {
   color: #087dc1;
-}
-.public-site.motion-paused .brand-coin {
-  transform: none !important;
 }
 .public-site [id] {
   scroll-margin-top: 105px;

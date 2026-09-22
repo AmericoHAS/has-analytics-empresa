@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState, type CSSProperties } from "react";
-import { MessageCircle, Pause, Play } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { Comment } from "@/lib/types";
 
@@ -36,7 +36,6 @@ export function Comments() {
   const [items, setItems] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [paused, setPaused] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -81,14 +80,12 @@ export function Comments() {
     setBusy(true);
     setMessage("");
     try {
-      const { error } = await supabase
-        .from("comments")
-        .insert({
-          author_name: name,
-          author_role: role || null,
-          content,
-          approved: false,
-        });
+      const { error } = await supabase.from("comments").insert({
+        author_name: name,
+        author_role: role || null,
+        content,
+        approved: false,
+      });
       if (error) throw error;
       setMessage("Comentário enviado! Ele aparecerá no site após a aprovação.");
       form.reset();
@@ -112,24 +109,13 @@ export function Comments() {
             <br />a sua marca.
           </h2>
         </div>
-        {scrolls && (
-          <button
-            type="button"
-            className="btn"
-            aria-pressed={paused}
-            onClick={() => setPaused((value) => !value)}
-          >
-            {paused ? <Play size={15} /> : <Pause size={15} />}
-            {paused ? "Retomar comentários" : "Pausar comentários"}
-          </button>
-        )}
       </div>
       {items.length ? (
         <div
-          className={`social-window ${paused || !scrolls ? "is-paused" : ""}`}
+          className={`social-window ${!scrolls ? "is-paused" : ""}`}
           tabIndex={0}
           role="region"
-          aria-label="Comentários aprovados. Pause para navegar e ler no seu ritmo."
+          aria-label="Comentários aprovados. Posicione o cursor ou o foco para ler no seu ritmo."
         >
           <div
             className="social-track"

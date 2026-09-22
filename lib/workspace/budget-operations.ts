@@ -11,6 +11,9 @@ export async function saveBudget(
   try {
     const payload = budgetInput.parse({
       ...Object.fromEntries(form),
+      ...(form.has("clientDetails")
+        ? { clientDetails: JSON.parse(String(form.get("clientDetails"))) }
+        : {}),
       items: JSON.parse(String(form.get("items") || "[]")),
     });
     const id = String(form.get("budgetId") || "");

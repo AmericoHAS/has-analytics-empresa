@@ -1,5 +1,6 @@
 "use client";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { actionError } from "@/lib/workspace/action-errors";
 import { supabase } from "@/lib/supabase";
 import type { AnalysisProject } from "@/lib/workspace/types";
 import { useLifecycle } from "./useLifecycle";
@@ -12,6 +13,8 @@ type Revision = {
   title: string;
   description: string;
   enabled: boolean;
+  analysis_completed_at: string | null;
+  completed_at: string | null;
 };
 export default function ProjectLifecycle({
   project,
@@ -26,14 +29,58 @@ export default function ProjectLifecycle({
   const state = useLifecycle(project.client_id, project.id)[0];
   const [revisions, setRevisions] = useState<Revision[]>([]),
     [message, setMessage] = useState("");
-  useEffect(() => {
-    void supabase
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const { data, error } = await supabase
       .from("project_revisions")
-      .select("id,title,description,enabled")
+      .select("id,title,description,enabled,analysis_completed_at,completed_at")
       .eq("project_id", project.id)
-      .order("created_at")
-      .then(({ data }) => setRevisions(data ?? []));
+      .order("created_at");
+    if (error) setMessage(actionError(error, "carregar revisões"));
+    else setRevisions(data ?? []);
   }, [project.id]);
+  useEffect(() => {
+    const refresh = () => void load();
+    const initial = setTimeout(refresh, 0);
+    window.addEventListener("has-workflow-updated", refresh);
+    return () => {
+      clearTimeout(initial);
+      window.removeEventListener("has-workflow-updated", refresh);
+    };
+  }, [load]);
+  async function action(name: string, revision?: string) {
+    if (busy) return;
+    if (
+      name === "complete_project_analysis" &&
+      !confirm(
+        "Confirmar que os resultados desta análise estão finais e liberar a consultoria ao cliente?",
+      )
+    )
+      return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const { error } = await supabase.rpc(name, {
+        p_project: project.id,
+        ...(name === "complete_project_analysis"
+          ? { p_revision: revision ?? null }
+          : {}),
+      });
+      if (error) throw Error(actionError(error, "atualizar o projeto"));
+      setMessage(
+        name === "complete_project_analysis"
+          ? "Análise concluída. Consultoria liberada e aviso registrado na fila de e-mail."
+          : "Projeto atualizado.",
+      );
+      window.dispatchEvent(new Event("has-workflow-updated"));
+    } catch (e) {
+      setMessage(
+        e instanceof Error ? e.message : "Falha de conexão. Tente novamente.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="stack">
       <div className="lifecycle-progress">
@@ -57,7 +104,13 @@ export default function ProjectLifecycle({
         <Deadline
           start={project.start_date}
           due={project.due_date}
-          status={project.status}
+          status={
+            project.archived_at
+              ? "cancelado"
+              : state?.facts.analysisCompleted
+                ? "concluido"
+                : project.status
+          }
         />
         {!state?.facts.dataReceived && (
           <Deadline
@@ -68,8 +121,50 @@ export default function ProjectLifecycle({
           />
         )}
       </div>
+      {message && (
+        <p className="action-feedback" role="status">
+          {message}
+        </p>
+      )}
+      {admin && !project.archived_at && project.status !== "concluido" && (
+        <div className="project-action-row">
+          {!project.analysis_completed_at &&
+            state?.facts.paymentConfirmed &&
+            state?.facts.dataReceived &&
+            project.status !== "em_andamento" && (
+              <button
+                className="btn primary"
+                disabled={busy}
+                onClick={() => void action("start_project_analysis")}
+              >
+                Iniciar análise com dados recebidos
+              </button>
+            )}
+          {!project.analysis_completed_at &&
+            ["em_andamento", "em_revisao"].includes(project.status) && (
+              <button
+                className="btn primary"
+                disabled={busy}
+                onClick={() => void action("complete_project_analysis")}
+              >
+                {busy
+                  ? "Atualizando…"
+                  : "Concluir análise e liberar consultoria"}
+              </button>
+            )}
+          {project.analysis_completed_at && state?.facts.meetingDone && (
+            <button
+              className="btn primary"
+              disabled={busy}
+              onClick={() => void action("close_analysis_project")}
+            >
+              Encerrar projeto após revisões e recibo
+            </button>
+          )}
+        </div>
+      )}
       <div className="project-action-row">
-        {(admin || (state?.facts.results && !revisions.length)) && (
+        {(admin || project.analysis_completed_at) && (
           <button
             className="btn"
             aria-expanded={panel === "agenda"}
@@ -83,6 +178,9 @@ export default function ProjectLifecycle({
           <>
             <button
               className="btn"
+              disabled={
+                busy || !project.analysis_completed_at || !!project.archived_at
+              }
               aria-expanded={panel === "revision"}
               onClick={() => setPanel(panel === "revision" ? null : "revision")}
             >
@@ -120,21 +218,37 @@ export default function ProjectLifecycle({
             className="stack"
             onSubmit={async (e) => {
               e.preventDefault();
+              if (busy) return;
+              setBusy(true);
               const f = new FormData(e.currentTarget);
-              const { data, error } = await supabase
-                .from("project_revisions")
-                .insert({
-                  project_id: project.id,
-                  title: f.get("title"),
-                  description: f.get("description"),
-                  enabled: true,
-                })
-                .select("id,title,description,enabled")
-                .single();
-              setMessage(
-                error ? error.message : "Revisão aberta e aviso registrado.",
-              );
-              if (data) setRevisions([...revisions, data]);
+              try {
+                const { data, error } = await supabase
+                  .from("project_revisions")
+                  .insert({
+                    project_id: project.id,
+                    title: f.get("title"),
+                    description: f.get("description"),
+                    enabled: true,
+                  })
+                  .select(
+                    "id,title,description,enabled,analysis_completed_at,completed_at",
+                  )
+                  .single();
+                setMessage(
+                  error ? error.message : "Revisão aberta e aviso registrado.",
+                );
+                if (data) {
+                  setRevisions([...revisions, data]);
+                  setPanel(null);
+                  window.dispatchEvent(new Event("has-workflow-updated"));
+                }
+              } catch {
+                setMessage(
+                  "Falha de conexão. Tente abrir a revisão novamente.",
+                );
+              } finally {
+                setBusy(false);
+              }
             }}
           >
             <label>
@@ -145,7 +259,9 @@ export default function ProjectLifecycle({
               Orientações
               <textarea name="description" maxLength={4000} />
             </label>
-            <button className="btn">Abrir revisão e avisar cliente</button>
+            <button className="btn" disabled={busy}>
+              {busy ? "Salvando…" : "Abrir revisão e avisar cliente"}
+            </button>
           </form>
           <p role="status">{message}</p>
         </div>
@@ -160,12 +276,29 @@ export default function ProjectLifecycle({
             admin={admin}
             revisionId={r.id}
           />
-          <Consultations
-            clientId={project.client_id}
-            projects={[project]}
-            admin={admin}
-            revisionId={r.id}
-          />
+          {admin && !r.analysis_completed_at && !project.archived_at && (
+            <button
+              className="btn primary"
+              disabled={busy}
+              onClick={() => void action("complete_project_analysis", r.id)}
+            >
+              Concluir revisão e liberar consultoria
+            </button>
+          )}
+          {(admin || r.analysis_completed_at) && (
+            <Consultations
+              clientId={project.client_id}
+              projects={[project]}
+              admin={admin}
+              revisionId={r.id}
+            />
+          )}
+          {!admin && !r.analysis_completed_at && (
+            <p className="workflow-notice">
+              A revisão está com a HAS. Você receberá um aviso quando a
+              consultoria for liberada.
+            </p>
+          )}
         </details>
       ))}
     </div>

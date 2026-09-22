@@ -7,6 +7,7 @@ import PresetField, {
 import { intakeFields } from "@/lib/commercial/intake";
 export default function BudgetPlanningFields({
   source,
+  projectId,
   clientId,
   budgetId,
   payment,
@@ -20,6 +21,7 @@ export default function BudgetPlanningFields({
     desired_date: string | null;
     intake: Record<string, string>;
   } | null;
+  projectId?: string;
   clientId: string;
   budgetId?: string;
   payment: string;
@@ -33,7 +35,7 @@ export default function BudgetPlanningFields({
       { id: string; title: string; intake?: Record<string, string> }[]
     >([]),
     [request, setRequest] = useState(source?.id ?? ""),
-    [ready, setReady] = useState(!budgetId),
+    [ready, setReady] = useState(!budgetId && !projectId),
     [message, setMessage] = useState("");
   useEffect(() => {
     supabase
@@ -59,7 +61,29 @@ export default function BudgetPlanningFields({
             setReady(true);
           }
         });
-  }, [clientId, budgetId]);
+    else if (projectId)
+      supabase
+        .from("project_private")
+        .select("department,data_assessment,complexity,estimated_hours")
+        .eq("project_id", projectId)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) {
+            setMessage(
+              "Não foi possível carregar o planejamento do projeto. Reabra o formulário para tentar novamente.",
+            );
+            return;
+          }
+          setValues(
+            Object.fromEntries(
+              Object.entries(data ?? {}).filter(
+                ([, value]) => value !== "" && value !== 0 && value !== null,
+              ),
+            ),
+          );
+          setReady(true);
+        });
+  }, [clientId, budgetId, projectId]);
   if (!ready)
     return (
       <fieldset>
@@ -122,10 +146,10 @@ export default function BudgetPlanningFields({
       <details>
         <summary>Anotações internas · opcional</summary>
         <p className="muted">
-          Não é necessário preencher para salvar ou gerar o orçamento. Estes
-          campos não aparecem nos documentos do cliente. Base, horas e
-          acréscimos registram a memória do cálculo; o total é calculado pelos
-          itens e desconto.
+          Não é necessário preencher para salvar ou gerar o orçamento. As notas
+          internas, avaliação e cálculo ficam restritos ao Admin. O departamento
+          pode aparecer no documento. Base, horas e acréscimos registram a
+          memória do cálculo; o total é calculado pelos itens e desconto.
         </p>
         <div className="form-grid">
           {[

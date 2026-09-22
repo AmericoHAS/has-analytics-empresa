@@ -10,7 +10,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
-  const [paused, setPaused] = useState(false);
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
@@ -57,23 +56,13 @@ export default function Login() {
     }
   }
   return (
-    <main
-      className={`auth-page compact-login ${paused ? "login-motion-paused" : ""}`}
-    >
+    <main className="auth-page compact-login">
       <section className="auth-brand">
         <Link className="login-home" href="/">
           ← HAS Analytics
         </Link>
         <BrandOrbit />
         <h1>Seu projeto, documentos e resultados em um só lugar.</h1>
-        <button
-          className="login-motion-control"
-          type="button"
-          aria-pressed={paused}
-          onClick={() => setPaused(!paused)}
-        >
-          {paused ? "Ativar animação" : "Pausar animação"}
-        </button>
       </section>
       <form className="auth-form" onSubmit={submit}>
         <span className="eyebrow">Área segura</span>

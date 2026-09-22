@@ -71,7 +71,7 @@ export default function Documents({
     let query = supabase
       .from("client_documents")
       .select(
-        "id,client_id,project_id,title,kind,status,storage_path,created_at,uploaded_by,uploader_role,original_name,file_size,requires_signature,signed_at",
+        "id,client_id,project_id,title,kind,status,storage_path,created_at,uploaded_by,uploader_role,original_name,file_size,requires_signature,signed_at,is_visible",
       )
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
@@ -128,6 +128,7 @@ export default function Documents({
         title: String(f.get("title")).trim(),
         kind: admin ? f.get("kind") : "arquivo",
         status: "disponivel",
+        is_visible: admin ? f.get("visible") === "on" : true,
         storage_path: path,
         uploaded_by: user.id,
         uploader_role: admin ? "admin" : "client",
@@ -140,6 +141,7 @@ export default function Documents({
       form.reset();
       setShow(false);
       setMessage("Arquivo enviado. Disponível na área privada do projeto.");
+      window.dispatchEvent(new Event("has-workflow-updated"));
       await load();
     } catch (e) {
       if (stored) {
@@ -245,6 +247,7 @@ export default function Documents({
         throw Error(
           "Arquivo removido, mas o registro ainda existe. Tente excluir novamente.",
         );
+      window.dispatchEvent(new Event("has-workflow-updated"));
       await load();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Falha na exclusão.");
@@ -309,7 +312,9 @@ export default function Documents({
               Projeto
               <select
                 name="project"
-                defaultValue={revisionId ? projects[0]?.id : ""}
+                defaultValue={
+                  revisionId || projects.length === 1 ? projects[0]?.id : ""
+                }
               >
                 <option value="">Geral do cliente</option>
                 {projects.map((p) => (
@@ -345,6 +350,13 @@ export default function Documents({
               MB
             </small>
           </label>
+          {admin && (
+            <label className="check">
+              <input type="checkbox" name="visible" defaultChecked />
+              Disponibilizar ao cliente agora (desmarque para guardar como
+              interno)
+            </label>
+          )}
           {admin && (
             <label className="check">
               <input type="checkbox" name="signature" />
@@ -407,6 +419,35 @@ export default function Documents({
             <div className="document-info">
               <span className="tag">{kinds[d.kind] ?? d.kind}</span>
               <h3>{d.title}</h3>
+              {admin && (
+                <button
+                  className="btn"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      const { error } = await supabase
+                        .from("client_documents")
+                        .update({ is_visible: !d.is_visible })
+                        .eq("id", d.id);
+                      if (error) throw error;
+                      await load();
+                      window.dispatchEvent(new Event("has-workflow-updated"));
+                    } catch {
+                      setMessage("Não foi possível alterar a visibilidade.");
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {d.is_visible
+                    ? "Tornar interno"
+                    : "Disponibilizar ao cliente"}
+                </button>
+              )}
+              {!d.is_visible && (
+                <span className="tag">Interno · somente HAS</span>
+              )}
               <small>
                 {projects.find((p) => p.id === d.project_id)?.title ??
                   "Geral do cliente"}{" "}

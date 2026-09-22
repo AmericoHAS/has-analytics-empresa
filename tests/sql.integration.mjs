@@ -38,7 +38,9 @@ if (process.env.TEST_MISSING_ADMIN_HELPER === "true")
   await db.exec("drop function public.is_admin() cascade");
 for (let pass = 0; pass < 2; pass++)
   for (const file of readdirSync("supabase/migrations")
-    .filter((f) => f.endsWith(".sql"))
+    .filter(
+      (f) => f.endsWith(".sql") && f !== "202609220001_final_workflow.sql",
+    )
     .sort())
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
 console.log("PASS migrations apply and can be reapplied without losing data");
@@ -929,5 +931,17 @@ await denied(
 );
 console.log(
   "PASS corrective SQL repeatable: legacy budget FK, create/archive/delete, complete calendar intervals, overlap atomicity and admin-only availability",
+);
+await db.exec("reset role");
+await db.exec(readFileSync("supabase/REVISAO-FINAL.sql", "utf8"));
+await db.exec(readFileSync("supabase/REVISAO-FINAL.sql", "utf8"));
+console.log(
+  "PASS final migration applies twice over populated legacy database",
+);
+await import("./final-workflow.scenarios.mjs").then((m) =>
+  m.runFinalWorkflow({ db, as, denied, admin, a, b }),
+);
+await import("./final-workflow.scenarios.mjs").then((m) =>
+  m.runFinalWorkflow({ db, as, denied, admin, a, b, dataFirst: true }),
 );
 await db.close();

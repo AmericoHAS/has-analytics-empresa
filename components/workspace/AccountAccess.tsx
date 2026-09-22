@@ -235,7 +235,8 @@ export default function AccountAccess({
               checked={whatsapp}
               onChange={(e) => setWhatsapp(e.target.checked)}
             />
-            Quero receber avisos do meu atendimento pelo WhatsApp.
+            Autorizo avisos pelo WhatsApp quando a integração futura for
+            ativada.
           </label>
           <button className="btn" disabled={busy}>
             Salvar preferências

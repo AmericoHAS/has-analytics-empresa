@@ -72,8 +72,11 @@ export default function WorkflowOverview({
       });
     }
     void load();
-    const timer = setInterval(() => void load(), 20000);
+    const refresh = () => void load();
+    window.addEventListener("has-workflow-updated", refresh);
+    const timer = setInterval(refresh, 20000);
     return () => {
+      window.removeEventListener("has-workflow-updated", refresh);
       alive = false;
       clearInterval(timer);
     };

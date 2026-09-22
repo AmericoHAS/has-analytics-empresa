@@ -1,3 +1,4 @@
+import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 export function createAdminClient() {
@@ -6,7 +7,7 @@ export function createAdminClient() {
 
   if (!url || !secretKey) {
     throw new Error(
-      "As variáveis NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SECRET_KEY são obrigatórias."
+      "As variáveis NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SECRET_KEY são obrigatórias.",
     );
   }
 

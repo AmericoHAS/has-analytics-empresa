@@ -1,4 +1,6 @@
 "use client";
+import { billingFields } from "@/lib/commercial/billing";
+import { budgetClientDefaults } from "@/lib/commercial/budget-defaults";
 import { intakeFields } from "@/lib/commercial/intake";
 import BudgetPlanningFields from "./BudgetPlanningFields";
 import CommercialDocuments from "@/components/workspace/CommercialDocuments";
@@ -19,6 +21,8 @@ import {
 import PaymentPreview from "@/components/workspace/PaymentPreview";
 type Item = { description: string; quantity: number; unitPrice: number };
 type Budget = {
+  archived_at?: string | null;
+  client_details?: Record<string, string> | null;
   publication_partnership?: boolean;
   payment_terms?: string;
   final_due_date?: string | null;
@@ -39,7 +43,13 @@ export default function ClientBudgetManager({
   readOnly = false,
 }: {
   clientId: string;
-  projects: { id: string; title: string }[];
+  projects: {
+    id: string;
+    title: string;
+    description?: string | null;
+    due_date?: string | null;
+    archived_at?: string | null;
+  }[];
   readOnly?: boolean;
 }) {
   type Request = {
@@ -49,7 +59,18 @@ export default function ClientBudgetManager({
     description: string;
     desired_date: string | null;
     intake: Record<string, string>;
+    name?: string;
+    email?: string;
+    phone?: string;
   };
+  const [requestsReady, setRequestsReady] = useState(readOnly);
+  const [history, setHistory] = useState(false);
+  const [clientDetails, setClientDetails] = useState<Record<string, string>>(
+    {},
+  );
+  const [billing, setBilling] = useState<Record<string, string> | null>(null);
+  const [profile, setProfile] = useState<Record<string, string> | null>(null);
+  const [identityReady, setIdentityReady] = useState(false);
   const [requests, setRequests] = useState<Request[]>([]),
     [source, setSource] = useState<Request | null>(null),
     [title, setTitle] = useState(""),
@@ -76,7 +97,6 @@ export default function ClientBudgetManager({
       .from("client_budgets")
       .select("*")
       .eq("client_id", clientId)
-      .is("archived_at", null)
       .order("created_at", { ascending: false });
     if (error) setMessage("Não foi possível carregar os orçamentos.");
     else setBudgets(data ?? []);
@@ -85,15 +105,25 @@ export default function ClientBudgetManager({
     if (!readOnly)
       supabase
         .from("budget_requests")
-        .select("id,project_id,title,description,desired_date,intake")
+        .select(
+          "id,project_id,title,description,desired_date,intake,name,email,phone",
+        )
         .eq("client_id", clientId)
         .order("created_at", { ascending: false })
-        .then(({ data }) => setRequests(data ?? []));
+        .then(({ data, error }) => {
+          if (error) {
+            setMessage(
+              "Não foi possível carregar as solicitações. Atualize antes de preparar a proposta.",
+            );
+            return;
+          }
+          setRequests(data ?? []);
+          setRequestsReady(true);
+        });
     supabase
       .from("client_budgets")
       .select("*")
       .eq("client_id", clientId)
-      .is("archived_at", null)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (error) setMessage("Não foi possível carregar os orçamentos.");
@@ -116,6 +146,32 @@ export default function ClientBudgetManager({
             );
         });
   }, [clientId, readOnly]);
+  useEffect(() => {
+    if (readOnly) return;
+    let active = true;
+    void Promise.all([
+      supabase
+        .from("client_billing_profiles")
+        .select("*")
+        .eq("client_id", clientId)
+        .maybeSingle(),
+      supabase.rpc("budget_client_contact", { p_client: clientId }),
+    ]).then(([b, p]) => {
+      if (!active) return;
+      if (b.error || p.error) {
+        setMessage(
+          "Não foi possível carregar o cadastro. Atualize antes de preparar a proposta.",
+        );
+        return;
+      }
+      setBilling(b.data);
+      setProfile(p.data);
+      setIdentityReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [clientId, readOnly]);
   async function itemRows(id: string) {
     const { data, error } = await supabase
       .from("client_budget_items")
@@ -131,6 +187,7 @@ export default function ClientBudgetManager({
   }
   function applyRequest(r: Request | null) {
     setSource(r);
+    setClientDetails(budgetClientDefaults(billing, profile, r));
     setTitle(r?.title ?? model.title);
     setDescription(
       r
@@ -142,6 +199,9 @@ export default function ClientBudgetManager({
           ].join("\n")
         : "",
     );
+    const linked = projects.find((p) => p.id === r?.project_id);
+    if (!r?.description && linked?.description)
+      setDescription(linked.description);
     setProjectId(r?.project_id ?? "");
   }
   function start() {
@@ -162,6 +222,9 @@ export default function ClientBudgetManager({
     try {
       setItems(await itemRows(b.id));
       setEdit(b);
+      setClientDetails(
+        b.client_details ?? budgetClientDefaults(billing, profile, null),
+      );
       setSource(null);
       setTitle(b.title);
       setDescription(b.description);
@@ -179,6 +242,7 @@ export default function ClientBudgetManager({
     setMessage("Salvando orçamento…");
     const f = new FormData(e.currentTarget);
     f.set("clientId", clientId);
+    f.set("clientDetails", JSON.stringify(clientDetails));
     f.set("budgetId", edit?.id ?? "");
     f.set("items", JSON.stringify(items));
     f.set("discountPercent", String(discount));
@@ -206,7 +270,10 @@ export default function ClientBudgetManager({
     try {
       const result = await changeBudgetStatus(supabase, b.id, value);
       setMessage(result.message);
-      if (result.success) await load();
+      if (result.success) {
+        window.dispatchEvent(new Event("has-workflow-updated"));
+        await load();
+      }
     } catch (e) {
       setMessage(
         e instanceof Error ? e.message : "Não foi possível atualizar o status.",
@@ -217,6 +284,9 @@ export default function ClientBudgetManager({
   }
   const [documentBudget, setDocumentBudget] = useState<string | null>(null);
   const sum = totals(items, discount);
+  const shownBudgets = budgets.filter((b) =>
+    history ? !!b.archived_at : !b.archived_at,
+  );
   if (readOnly)
     return <CommercialDocuments clientId={clientId} kind="orcamento" />;
   return (
@@ -229,7 +299,7 @@ export default function ClientBudgetManager({
         {!readOnly && !open && (
           <button
             className="btn primary"
-            disabled={!modelReady || busy}
+            disabled={!modelReady || !identityReady || !requestsReady || busy}
             onClick={start}
           >
             Novo orçamento
@@ -289,6 +359,34 @@ export default function ClientBudgetManager({
               </small>
             </label>
           )}
+          <details className="budget-identity">
+            <summary>
+              Dados do cliente ·{" "}
+              {clientDetails.legal_name || "conferir cadastro"}
+            </summary>
+            <p className="muted">
+              Preenchidos com o cadastro existente. Alterações aqui ficam nesta
+              proposta; revise antes de gerar os documentos.
+            </p>
+            <div className="form-grid">
+              {billingFields.map(([key, label]) => (
+                <label key={key}>
+                  {label}
+                  <input
+                    type={key === "email" ? "email" : "text"}
+                    maxLength={350}
+                    value={clientDetails[key] ?? ""}
+                    onChange={(e) =>
+                      setClientDetails({
+                        ...clientDetails,
+                        [key]: e.target.value,
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+          </details>
           <div className="form-grid">
             <label>
               Título
@@ -304,7 +402,14 @@ export default function ClientBudgetManager({
               <select
                 name="projectId"
                 value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
+                onChange={(e) => {
+                  setProjectId(e.target.value);
+                  const p = projects.find((p) => p.id === e.target.value);
+                  if (!edit && p) {
+                    if (!title || title === model.title) setTitle(p.title);
+                    if (!description) setDescription(p.description ?? "");
+                  }
+                }}
               >
                 <option value="">Geral do cliente</option>
                 {projects.map((p) => (
@@ -319,7 +424,7 @@ export default function ClientBudgetManager({
               <input
                 type="date"
                 name="validUntil"
-                defaultValue={edit?.valid_until ?? validity}
+                defaultValue={edit ? (edit.valid_until ?? "") : validity}
               />
             </label>
             <label>
@@ -536,11 +641,16 @@ export default function ClientBudgetManager({
           <PaymentPreview total={sum.total} />
           <BudgetPlanningFields
             source={source}
-            key={edit?.id ?? source?.id ?? "planning"}
+            projectId={projectId}
+            key={edit?.id ?? `${source?.id ?? "planning"}:${projectId}`}
             clientId={clientId}
             budgetId={edit?.id}
             payment={edit?.payment_terms ?? model.payment}
-            delivery={edit?.final_due_date ?? ""}
+            delivery={
+              edit
+                ? (edit.final_due_date ?? "")
+                : (projects.find((p) => p.id === projectId)?.due_date ?? "")
+            }
             hours={hours}
             base={model.baseValue}
             additions={
@@ -569,10 +679,22 @@ export default function ClientBudgetManager({
           </button>
         </form>
       )}
-      {!budgets.length && !open && (
+      {!shownBudgets.length && !open && (
         <div className="empty-state">Nenhum orçamento disponível.</div>
       )}
-      {budgets.map((b) => (
+      {!open && (
+        <label className="filters">
+          Lista de orçamentos
+          <select
+            value={history ? "history" : "active"}
+            onChange={(e) => setHistory(e.target.value === "history")}
+          >
+            <option value="active">Ativos</option>
+            <option value="history">Histórico arquivado</option>
+          </select>
+        </label>
+      )}
+      {shownBudgets.map((b) => (
         <article key={b.id} className="workspace-card">
           <div className="row">
             <div>
@@ -614,14 +736,14 @@ export default function ClientBudgetManager({
               <>
                 <button
                   className="btn"
-                  disabled={busy}
+                  disabled={busy || !!b.archived_at}
                   onClick={() => editing(b)}
                 >
                   Editar
                 </button>
                 <select
                   aria-label={`Status de ${b.budget_number}`}
-                  disabled={busy}
+                  disabled={busy || !!b.archived_at}
                   value={b.status}
                   onChange={(e) => status(b, e.target.value)}
                 >
@@ -640,7 +762,7 @@ export default function ClientBudgetManager({
                 </select>
                 <button
                   className="btn danger-text"
-                  disabled={busy}
+                  disabled={busy || !!b.archived_at}
                   onClick={async () => {
                     if (
                       !confirm(
@@ -652,7 +774,10 @@ export default function ClientBudgetManager({
                     try {
                       const result = await archiveBudget(supabase, b.id);
                       setMessage(result.message);
-                      if (result.success) await load();
+                      if (result.success) {
+                        window.dispatchEvent(new Event("has-workflow-updated"));
+                        await load();
+                      }
                     } catch (e) {
                       setMessage(
                         e instanceof Error

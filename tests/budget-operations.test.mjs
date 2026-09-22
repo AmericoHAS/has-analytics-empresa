@@ -96,3 +96,49 @@ test("uncertain save/archival never auto-retries or reports success", async () =
   assert.equal((await ops.archiveBudget(db, id)).success, false);
   assert.equal(calls, 2);
 });
+
+test("reviewed identity is saved in the same budget RPC without changing profile", async () => {
+  const f = form();
+  f.set(
+    "clientDetails",
+    JSON.stringify({ legal_name: "Nome revisado", institution: "" }),
+  );
+  const result = await ops.saveBudget(
+    {
+      rpc: async (name, { payload }) => {
+        assert.deepEqual(payload.clientDetails, {
+          legal_name: "Nome revisado",
+          institution: "",
+        });
+        return { data: id, error: null };
+      },
+      from: () => {
+        throw Error("Must not overwrite shared profile");
+      },
+    },
+    f,
+  );
+  assert.equal(result.success, true);
+});
+const { budgetClientDefaults } = load("lib/commercial/budget-defaults.ts", {
+  "./billing": load("lib/commercial/billing.ts"),
+});
+test("budget defaults prefer saved billing, preserve intentionally empty values and reuse request contact", () => {
+  const request = {
+    name: "Solicitante",
+    email: "fixture@example.test",
+    phone: "44999999999",
+    intake: { institution: "Universidade" },
+  };
+  const fresh = budgetClientDefaults(null, { full_name: "Perfil" }, request);
+  assert.equal(fresh.legal_name, "Solicitante");
+  assert.equal(fresh.institution, "Universidade");
+  const saved = budgetClientDefaults(
+    { legal_name: "Revisado", institution: "" },
+    null,
+    request,
+  );
+  assert.equal(saved.legal_name, "Revisado");
+  assert.equal(saved.institution, "");
+  assert.equal(saved.email, "fixture@example.test");
+});

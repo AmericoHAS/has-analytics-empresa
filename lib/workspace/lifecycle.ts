@@ -8,16 +8,26 @@ export type LifecycleFacts = {
   paymentConfirmed: boolean;
   dataReceived: boolean;
   results: boolean;
+  analysisCompleted?: boolean;
+  completed?: boolean;
+  revision?: boolean;
   meeting: boolean;
   meetingDone: boolean;
   analysis: boolean;
   manualProgress: number;
 };
 export function lifecycle(f: LifecycleFacts) {
-  if (f.meetingDone)
+  if (f.completed)
     return {
       progress: 100,
-      label: "Consultoria realizada",
+      label: "Projeto concluído",
+      tab: "projetos",
+      pending: false,
+    };
+  if (f.meetingDone)
+    return {
+      progress: 98,
+      label: "Consultoria realizada · finalização com a HAS",
       tab: "projetos",
       pending: false,
     };
@@ -28,7 +38,7 @@ export function lifecycle(f: LifecycleFacts) {
       tab: "projetos",
       pending: false,
     };
-  if (f.results)
+  if (f.analysisCompleted)
     return {
       progress: 90,
       label: "Agende sua consultoria",
@@ -39,7 +49,9 @@ export function lifecycle(f: LifecycleFacts) {
     return {
       progress:
         50 + Math.round(Math.max(0, Math.min(100, f.manualProgress)) * 0.35),
-      label: "Análise estatística em andamento",
+      label: f.revision
+        ? "Revisão em andamento · com a HAS"
+        : "Análise estatística em andamento · com a HAS",
       tab: "projetos",
       pending: false,
     };
@@ -53,7 +65,7 @@ export function lifecycle(f: LifecycleFacts) {
   if (f.paymentConfirmed && f.dataReceived)
     return {
       progress: 50,
-      label: "Dados recebidos · análise a iniciar",
+      label: "Dados recebidos · início da análise com a HAS",
       tab: "projetos",
       pending: false,
     };

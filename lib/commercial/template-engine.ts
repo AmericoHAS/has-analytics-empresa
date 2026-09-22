@@ -67,11 +67,8 @@ export async function hasTemplatePdf(word: Buffer, kind: TemplateKind) {
     })),
   );
   const zip = await JSZip.loadAsync(word);
-  const watermark = await zip
-    .file(
-      kind === "contrato" ? "word/media/image1.png" : "word/media/image3.png",
-    )
-    ?.async("base64");
+  // Verified individually in all three official templates: 1=logo, 2=signature, 3=watermark.
+  const watermark = await zip.file("word/media/image3.png")?.async("base64");
   const local =
     process.env.DOCUMENT_BROWSER_PATH ||
     (process.platform === "win32"
@@ -130,7 +127,7 @@ export async function hasTemplatePdf(word: Buffer, kind: TemplateKind) {
           )
           .join("\n") +
         `
- @page{size:A4;margin:${margin}mm;}html,body{margin:0;padding:0;background:white!important;}section.docx{padding:0!important;width:auto!important;min-height:0!important;box-shadow:none!important;background:transparent!important;}article{position:relative;z-index:1;}table{max-width:100%;border-collapse:collapse;}tr{break-inside:avoid;}p{orphans:2;widows:2;}img{max-width:100%;}#watermark{position:fixed;top:48mm;left:0;width:100%;height:160mm;background:url(data:image/png;base64,${watermark ?? ""}) center/contain no-repeat;opacity:.16;z-index:0;}a{color:inherit;text-decoration:none;}*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+ @page{size:A4;margin:${margin}mm;}html,body{margin:0;padding:0;background:white!important;}section.docx{display:block!important;overflow:visible!important;padding:0!important;width:auto!important;min-height:0!important;box-shadow:none!important;background:transparent!important;}article{position:relative;z-index:1;}table{max-width:100%;border-collapse:collapse;}tr{break-inside:avoid;}p{orphans:2;widows:2;}img{max-width:100%;}#watermark{position:fixed;top:48mm;left:0;width:100%;height:160mm;background:url(data:image/png;base64,${watermark ?? ""}) center/contain no-repeat;opacity:.16;z-index:0;}a{color:inherit;text-decoration:none;}*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
  `,
     });
     await page.evaluate(async () => {

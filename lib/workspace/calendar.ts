@@ -35,6 +35,7 @@ export function availabilityError(
   return "";
 }
 export type CalendarSlot = {
+  bookingStatus?: string;
   id: string;
   starts_at: string;
   ends_at: string;

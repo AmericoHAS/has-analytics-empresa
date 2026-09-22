@@ -37,6 +37,7 @@ type Budget = {
   title: string;
   status: string;
   revision: number;
+  archived_at: string | null;
 };
 type Template = {
   body: string;
@@ -98,7 +99,7 @@ export default function CommercialDocuments({
         .order("created_at", { ascending: false }),
       supabase
         .from("client_budgets")
-        .select("id,budget_number,title,status,revision")
+        .select("id,budget_number,title,status,revision,archived_at")
         .eq("client_id", clientId)
         .order("created_at", { ascending: false }),
     ]);
@@ -197,118 +198,125 @@ export default function CommercialDocuments({
           </button>
         </div>
       )}
-      {admin && (
-        <>
-          <button
-            className="btn primary"
-            disabled={busy || !template}
-            onClick={() => {
-              setBody(template?.body ?? "");
-              setTitle(
-                kind === "contrato"
-                  ? "Contrato de prestação de serviços"
-                  : "Orçamento de serviços",
-              );
-              setEditor(!editor);
-            }}
-          >
-            {docs.length ? "Gerar nova versão" : "Gerar PDF e Word"}
-          </button>
-          {editor && (
-            <form
-              className="workspace-card stack"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                f.set("kind", kind);
-                void run(() => generateCommercialDocument(f));
+      {admin &&
+        (!budgetId || !budgets.find((b) => b.id === budgetId)?.archived_at) && (
+          <>
+            <button
+              className="btn primary"
+              disabled={busy || !template}
+              onClick={() => {
+                setBody(template?.body ?? "");
+                setTitle(
+                  kind === "contrato"
+                    ? "Contrato de prestação de serviços"
+                    : "Orçamento de serviços",
+                );
+                setEditor(!editor);
               }}
             >
-              <label hidden={!!budgetId}>
-                Orçamento de origem
-                <select
-                  name="budgetId"
-                  required
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                >
-                  <option value="">
-                    Selecione
-                    {kind === "contrato" ? " um orçamento aprovado" : ""}
-                  </option>
-                  {budgets
-                    .filter(
-                      (b) => kind !== "contrato" || b.status === "aprovado",
-                    )
-                    .map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.budget_number} · {b.title}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label>
-                Título do documento
-                <input
-                  name="title"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  maxLength={300}
-                />
-              </label>
-              <p>
-                Identificação, itens, valores e condições de pagamento são
-                preenchidos a partir do cadastro e orçamento. Edite abaixo as
-                condições específicas deste documento.
-              </p>
-              <label>
-                Condições adicionais desta versão (opcional)
-                <textarea
-                  name="body"
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  maxLength={20000}
-                />
-              </label>
-              {kind === "contrato" && (
-                <div className="form-grid">
-                  <label>
-                    Quantidade de revisões incluídas
-                    <input
-                      name="revisions"
-                      defaultValue="1"
-                      required
-                      maxLength={100}
-                    />
-                  </label>
-                  <label>
-                    Cidade / foro conforme acordo
-                    <input
-                      name="forumCity"
-                      defaultValue="Maringá — PR"
-                      required
-                      maxLength={200}
-                    />
-                  </label>
-                  <label>
-                    Link da cobrança no Mercado Pago (se cartão)
-                    <input name="paymentLink" type="url" pattern="https://.*" />
-                  </label>
-                </div>
-              )}
-              <p className="muted">
-                O documento usa o modelo Word original da HAS, com sua
-                identidade e cláusulas. O texto acima será acrescentado ao
-                modelo. Confira todas as condições antes de assinar.
-              </p>
-              <button className="btn primary" disabled={busy}>
-                {busy ? "Gerando…" : "Gerar PDF e Word em rascunho"}
-              </button>
-            </form>
-          )}
-        </>
-      )}
+              {docs.length ? "Gerar nova versão" : "Gerar PDF e Word"}
+            </button>
+            {editor && (
+              <form
+                className="workspace-card stack"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const f = new FormData(e.currentTarget);
+                  f.set("kind", kind);
+                  void run(() => generateCommercialDocument(f));
+                }}
+              >
+                <label hidden={!!budgetId}>
+                  Orçamento de origem
+                  <select
+                    name="budgetId"
+                    required
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                  >
+                    <option value="">
+                      Selecione
+                      {kind === "contrato" ? " um orçamento aprovado" : ""}
+                    </option>
+                    {budgets
+                      .filter(
+                        (b) =>
+                          !b.archived_at &&
+                          (kind !== "contrato" || b.status === "aprovado"),
+                      )
+                      .map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.budget_number} · {b.title}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label>
+                  Título do documento
+                  <input
+                    name="title"
+                    required
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    maxLength={300}
+                  />
+                </label>
+                <p>
+                  Identificação, itens, valores e condições de pagamento são
+                  preenchidos a partir do cadastro e orçamento. Edite abaixo as
+                  condições específicas deste documento.
+                </p>
+                <label>
+                  Condições adicionais desta versão (opcional)
+                  <textarea
+                    name="body"
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    maxLength={20000}
+                  />
+                </label>
+                {kind === "contrato" && (
+                  <div className="form-grid">
+                    <label>
+                      Quantidade de revisões incluídas
+                      <input
+                        name="revisions"
+                        defaultValue="1"
+                        required
+                        maxLength={100}
+                      />
+                    </label>
+                    <label>
+                      Cidade / foro conforme acordo
+                      <input
+                        name="forumCity"
+                        defaultValue="Maringá — PR"
+                        required
+                        maxLength={200}
+                      />
+                    </label>
+                    <label>
+                      Link da cobrança no Mercado Pago (se cartão)
+                      <input
+                        name="paymentLink"
+                        type="url"
+                        pattern="https://.*"
+                      />
+                    </label>
+                  </div>
+                )}
+                <p className="muted">
+                  O documento usa o modelo Word original da HAS, com sua
+                  identidade e cláusulas. O texto acima será acrescentado ao
+                  modelo. Confira todas as condições antes de assinar.
+                </p>
+                <button className="btn primary" disabled={busy}>
+                  {busy ? "Gerando…" : "Gerar PDF e Word em rascunho"}
+                </button>
+              </form>
+            )}
+          </>
+        )}
       <p role="status">{message}</p>
       {!loaded && !message && <p role="status">Carregando documentos…</p>}
       {loaded && !docs.length && (
@@ -379,7 +387,10 @@ export default function CommercialDocuments({
         )
         .map((d) => {
           const current = budgets.find((b) => b.id === d.budget_id);
-          const stale = !current || current.revision !== d.source_revision;
+          const stale =
+            !current ||
+            current.revision !== d.source_revision ||
+            !!current.archived_at;
           return (
             <article className="workspace-card stack" key={d.id}>
               <div className="row">
@@ -401,66 +412,72 @@ export default function CommercialDocuments({
               )}
               {stale && (
                 <p>
-                  O orçamento de origem foi atualizado. Esta versão permanece no
-                  histórico; solicite uma versão atualizada antes de aprovar.
+                  {current?.archived_at
+                    ? "Orçamento arquivado. Os documentos permanecem disponíveis para consulta."
+                    : "O orçamento de origem foi atualizado. Esta versão permanece no histórico; solicite uma versão atualizada antes de aprovar."}
                 </p>
               )}
-              {admin && kind === "contrato" && d.status === "rascunho" && (
-                <form
-                  className="workspace-card stack"
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const file = new FormData(e.currentTarget).get(
-                      "providerPdf",
-                    ) as File;
-                    setBusy(true);
-                    let path = "";
-                    try {
-                      if (
-                        !file ||
-                        file.size > 20 * 1024 * 1024 ||
-                        new TextDecoder().decode(
-                          await file.slice(0, 5).arrayBuffer(),
-                        ) !== "%PDF-"
-                      )
-                        throw Error("Envie um PDF válido de até 20 MB.");
-                      path = `${clientId}/${d.id}/provider-${crypto.randomUUID()}.pdf`;
-                      const { error } = await supabase.storage
-                        .from("commercial-documents")
-                        .upload(path, file, { contentType: "application/pdf" });
-                      if (error) throw Error("Falha ao enviar PDF.");
-                      const r = await registerProviderSignature(d.id, path);
-                      if (!r.success) throw Error(r.message);
-                      path = "";
-                      setMessage(r.message);
-                      await load();
-                    } catch (e) {
-                      if (path)
-                        await supabase.storage
+              {admin &&
+                !stale &&
+                kind === "contrato" &&
+                d.status === "rascunho" && (
+                  <form
+                    className="workspace-card stack"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const file = new FormData(e.currentTarget).get(
+                        "providerPdf",
+                      ) as File;
+                      setBusy(true);
+                      let path = "";
+                      try {
+                        if (
+                          !file ||
+                          file.size > 20 * 1024 * 1024 ||
+                          new TextDecoder().decode(
+                            await file.slice(0, 5).arrayBuffer(),
+                          ) !== "%PDF-"
+                        )
+                          throw Error("Envie um PDF válido de até 20 MB.");
+                        path = `${clientId}/${d.id}/provider-${crypto.randomUUID()}.pdf`;
+                        const { error } = await supabase.storage
                           .from("commercial-documents")
-                          .remove([path]);
-                      setMessage(
-                        e instanceof Error ? e.message : "Falha ao salvar.",
-                      );
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  <label>
-                    Contrato já assinado pela HAS
-                    <input
-                      name="providerPdf"
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      required
-                    />
-                  </label>
-                  <button className="btn" disabled={busy}>
-                    Registrar PDF assinado pela HAS
-                  </button>
-                </form>
-              )}
+                          .upload(path, file, {
+                            contentType: "application/pdf",
+                          });
+                        if (error) throw Error("Falha ao enviar PDF.");
+                        const r = await registerProviderSignature(d.id, path);
+                        if (!r.success) throw Error(r.message);
+                        path = "";
+                        setMessage(r.message);
+                        await load();
+                      } catch (e) {
+                        if (path)
+                          await supabase.storage
+                            .from("commercial-documents")
+                            .remove([path]);
+                        setMessage(
+                          e instanceof Error ? e.message : "Falha ao salvar.",
+                        );
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    <label>
+                      Contrato já assinado pela HAS
+                      <input
+                        name="providerPdf"
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        required
+                      />
+                    </label>
+                    <button className="btn" disabled={busy}>
+                      Registrar PDF assinado pela HAS
+                    </button>
+                  </form>
+                )}
               <div className="commercial-document-actions">
                 <button
                   className="btn"
@@ -478,7 +495,7 @@ export default function CommercialDocuments({
                     >
                       Word editável
                     </button>
-                    {!d.external_revision && (
+                    {!d.external_revision && !current?.archived_at && (
                       <button
                         className="btn"
                         disabled={busy}
@@ -799,7 +816,7 @@ export default function CommercialDocuments({
                         </button>
                       </form>
                     )}
-                  {admin && d.signature_status === "recebida" && (
+                  {admin && !stale && d.signature_status === "recebida" && (
                     <div className="commercial-document-actions">
                       <a
                         className="text-link"

@@ -16,6 +16,7 @@ type Booking = {
   id: string;
   slot_id: string;
   project_id: string;
+  revision_id: string | null;
   status: string;
   meeting_url: string;
   confirmed_location: string;
@@ -67,7 +68,7 @@ export default function Consultations({
         let q = supabase
           .from("consultation_bookings")
           .select(
-            "id,slot_id,project_id,status,meeting_url,confirmed_location,slot:consultation_slots(starts_at,ends_at,location,mode)",
+            "id,slot_id,project_id,revision_id,status,meeting_url,confirmed_location,slot:consultation_slots(starts_at,ends_at,location,mode)",
           )
           .order("created_at", { ascending: false });
         if (clientId) q = q.eq("client_id", clientId);
@@ -109,6 +110,14 @@ export default function Consultations({
       setBusy(false);
     }
   }
+  const currentBookings = bookings.filter(
+    (b) =>
+      b.status !== "cancelado" &&
+      (!projects.length || projects.some((p) => p.id === b.project_id)) &&
+      (revisionId ? b.revision_id === revisionId : !b.revision_id),
+  );
+  const canChoose =
+    admin || !currentBookings.some((b) => b.project_id === project);
   return (
     <section className="workspace-card stack">
       <div>
@@ -116,24 +125,33 @@ export default function Consultations({
         <h3>Agenda de atendimento</h3>
         <p className="muted">
           Horários de Brasília. Escolha o atendimento presencial ou online após
-          receber os resultados.
+          a HAS concluir a análise e liberar a consultoria.
         </p>
       </div>
-      <ConsultationCalendar
-        slots={slots}
-        admin={admin}
-        busy={busy}
-        onOpen={(date) => {
-          setOpening(date);
-          setSelected(null);
-          setMessage("");
-        }}
-        onSelect={(slot) => {
-          setSelected(slot);
-          setOpening("");
-          setMessage("");
-        }}
-      />
+      {canChoose && (
+        <ConsultationCalendar
+          slots={slots.map((s) => ({
+            ...s,
+            bookingStatus: admin
+              ? bookings.find(
+                  (b) => b.slot_id === s.id && b.status !== "cancelado",
+                )?.status
+              : undefined,
+          }))}
+          admin={admin}
+          busy={busy}
+          onOpen={(date) => {
+            setOpening(date);
+            setSelected(null);
+            setMessage("");
+          }}
+          onSelect={(slot) => {
+            setSelected(slot);
+            setOpening("");
+            setMessage("");
+          }}
+        />
+      )}
       <div ref={selection} />
       {admin && opening && (
         <form
@@ -250,7 +268,7 @@ export default function Consultations({
           {message}
         </p>
       )}
-      {selected && (
+      {selected && canChoose && (
         <div className="calendar-selection stack">
           <div className="row">
             <strong>{when(selected.starts_at)}</strong>
@@ -273,20 +291,126 @@ export default function Consultations({
                 : " Escolha um horário disponível."}
             </p>
           ) : admin ? (
-            <button
-              className="btn"
-              disabled={busy}
-              onClick={() =>
+            <form
+              className="stack"
+              key={selected.id}
+              onSubmit={(e) => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                const start = String(f.get("start"));
+                const minutes = Number(f.get("minutes"));
+                const begin = Date.parse(start + "-03:00");
+                if (!Number.isFinite(begin) || begin <= Date.now()) {
+                  setMessage("Escolha um início futuro.");
+                  return;
+                }
+                const location = String(f.get("location") ?? "").trim();
+                if (f.get("mode") === "presencial" && !location) {
+                  setMessage("Informe o endereço presencial.");
+                  return;
+                }
                 void run(() =>
                   supabase
                     .from("consultation_slots")
-                    .update({ enabled: false })
-                    .eq("id", selected.id),
-                )
-              }
+                    .update({
+                      starts_at: new Date(begin).toISOString(),
+                      ends_at: new Date(begin + minutes * 60000).toISOString(),
+                      mode: f.get("mode"),
+                      location,
+                    })
+                    .eq("id", selected.id)
+                    .select("id")
+                    .single(),
+                );
+              }}
             >
-              Fechar horário disponível
-            </button>
+              <div className="form-grid">
+                <label>
+                  Início
+                  <input
+                    name="start"
+                    type="datetime-local"
+                    required
+                    defaultValue={new Date(
+                      Date.parse(selected.starts_at) - 3 * 3600000,
+                    )
+                      .toISOString()
+                      .slice(0, 16)}
+                  />
+                </label>
+                <label>
+                  Duração
+                  <select
+                    name="minutes"
+                    defaultValue={
+                      (Date.parse(selected.ends_at) -
+                        Date.parse(selected.starts_at)) /
+                      60000
+                    }
+                  >
+                    {Array.from(
+                      new Set([
+                        15,
+                        30,
+                        45,
+                        60,
+                        90,
+                        120,
+                        (Date.parse(selected.ends_at) -
+                          Date.parse(selected.starts_at)) /
+                          60000,
+                      ]),
+                    )
+                      .sort((a, b) => a - b)
+                      .map((n) => (
+                        <option key={n} value={n}>
+                          {n} minutos
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label>
+                  Modalidade
+                  <select name="mode" defaultValue={selected.mode}>
+                    <option value="online">Online</option>
+                    <option value="presencial">Presencial</option>
+                  </select>
+                </label>
+                <label>
+                  Local presencial
+                  <input
+                    name="location"
+                    maxLength={500}
+                    defaultValue={selected.location}
+                  />
+                </label>
+              </div>
+              <div className="actions">
+                <button className="btn primary" disabled={busy}>
+                  {busy ? "Salvando…" : "Salvar horário"}
+                </button>
+                <button
+                  className="btn danger-text"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    if (
+                      confirm("Remover este horário disponível do calendário?")
+                    )
+                      void run(() =>
+                        supabase
+                          .from("consultation_slots")
+                          .update({ enabled: false })
+                          .eq("id", selected.id)
+                          .select("id")
+                          .single(),
+                      );
+                  }}
+                >
+                  Remover disponibilidade
+                </button>
+              </div>
+            </form>
           ) : (
             <button
               className="btn primary"
@@ -306,9 +430,19 @@ export default function Consultations({
           )}
         </div>
       )}
-      {!slots.length && <p>Nenhum horário aberto neste momento.</p>}
+      {canChoose && !slots.length && (
+        <p>
+          Nenhum horário aberto neste momento. A HAS disponibilizará novos
+          horários.
+        </p>
+      )}
       {bookings
-        .filter((b) => b.status !== "cancelado")
+        .filter(
+          (b) =>
+            b.status !== "cancelado" &&
+            (!projects.length || projects.some((p) => p.id === b.project_id)) &&
+            (revisionId ? b.revision_id === revisionId : !b.revision_id),
+        )
         .map((b) => (
           <article className="workspace-card" key={b.id}>
             <strong>
@@ -367,9 +501,7 @@ export default function Consultations({
                   Local confirmado
                   <input
                     name="location"
-                    defaultValue={
-                      slots.find((s) => s.id === b.slot_id)?.location ?? ""
-                    }
+                    defaultValue={b.slot?.location ?? ""}
                   />
                 </label>
                 <button className="btn" disabled={busy}>
@@ -395,7 +527,7 @@ export default function Consultations({
             )}
             {b.status !== "concluido" && (
               <button
-                className="btn"
+                className="btn danger-text"
                 disabled={busy}
                 onClick={() => {
                   if (confirm("Cancelar este agendamento e liberar o horário?"))

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { actionError } from "./action-errors";
 
 // Uses the signed-in browser session. The RPC enforces admin authorization and
-// preserves linked documents/budgets transactionally; never fall back to DELETE.
+// refuses projects with history; never fall back to an unprotected DELETE.
 export async function deleteProject(
   db: Pick<SupabaseClient, "rpc">,
   projectId: string,
@@ -26,7 +26,7 @@ export async function deleteProject(
       };
     return {
       success: true,
-      message: "Projeto excluído. Documentos e orçamentos foram preservados.",
+      message: "Projeto sem histórico excluído.",
     };
   } catch {
     return {

@@ -101,7 +101,12 @@ export default function ConsultationCalendar({
       </div>
       <div className="calendar-legend">
         <span>● Disponível</span>
-        <span>● Reservado</span>
+        {admin && (
+          <>
+            <span>● Reservado</span>
+            <span>● Confirmado</span>
+          </>
+        )}
         <small>Horário de Brasília</small>
       </div>
       <div className="calendar-scroll">
@@ -172,7 +177,11 @@ export default function ConsultationCalendar({
                   <button
                     key={s.id}
                     className={
-                      s.busy ? "calendar-event reserved" : "calendar-event"
+                      s.bookingStatus === "confirmado"
+                        ? "calendar-event confirmed"
+                        : s.busy
+                          ? "calendar-event reserved"
+                          : "calendar-event"
                     }
                     disabled={busy}
                     style={{
@@ -197,7 +206,9 @@ export default function ConsultationCalendar({
                         <MapPin size={12} />
                       )}{" "}
                       {s.busy
-                        ? "Reservado"
+                        ? s.bookingStatus === "confirmado"
+                          ? "Confirmado"
+                          : "Reservado"
                         : s.mode === "online"
                           ? "Online"
                           : "Presencial"}

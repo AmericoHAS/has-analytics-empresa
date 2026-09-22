@@ -1,4 +1,5 @@
 "use client";
+import { actionError } from "@/lib/workspace/action-errors";
 import { deleteProject } from "@/lib/workspace/delete-project";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -28,6 +29,7 @@ export default function Projects({
     ),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
+  const [view, setView] = useState("active");
   const [confirmDelete, setConfirmDelete] = useState(false);
   async function remove() {
     if (!admin || !edit || busy) return;
@@ -78,13 +80,21 @@ export default function Projects({
     const query = edit
       ? supabase.from("client_projects").update(values).eq("id", edit.id)
       : supabase.from("client_projects").insert(values);
-    const { error } = await query.select(projectColumns).single();
-    if (error) setMessage(error.message);
-    else {
-      setEdit(undefined);
-      onChange();
+    try {
+      const { error } = await query.select(projectColumns).single();
+      if (error) setMessage(error.message);
+      else {
+        setEdit(undefined);
+        window.dispatchEvent(new Event("has-workflow-updated"));
+        onChange();
+      }
+    } catch {
+      setMessage(
+        "Falha de conexão. Os campos foram mantidos; confira a lista antes de repetir.",
+      );
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
   return (
     <div className="stack">
@@ -106,7 +116,19 @@ export default function Projects({
           </button>
         )}
       </div>
-      {message && <p role="status">{message}</p>}
+      <label className="filters">
+        Exibir projetos{" "}
+        <select value={view} onChange={(e) => setView(e.target.value)}>
+          <option value="active">Ativos</option>
+          <option value="completed">Concluídos</option>
+          <option value="archived">Arquivados</option>
+        </select>
+      </label>
+      {message && (
+        <p className="action-feedback" role="status">
+          {message}
+        </p>
+      )}
       {edit !== undefined && (
         <form
           className="workspace-card stack"
@@ -147,11 +169,15 @@ export default function Projects({
             <label>
               Status
               <select name="status" defaultValue={edit?.status ?? "solicitado"}>
-                {Object.entries(statusLabels).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
+                {Object.entries(statusLabels)
+                  .filter(
+                    ([k]) => k !== "concluido" || edit?.status === "concluido",
+                  )
+                  .map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
                 {edit && !statusLabels[edit.status] && (
                   <option>{edit.status}</option>
                 )}
@@ -208,14 +234,48 @@ export default function Projects({
           </button>
           {admin && edit && (
             <div className="project-delete-panel">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const { error } = await supabase.rpc(
+                      "archive_analysis_project",
+                      { p_project: edit.id, p_archive: !edit.archived_at },
+                    );
+                    if (error)
+                      throw Error(actionError(error, "arquivar projeto"));
+                    setMessage(
+                      edit.archived_at
+                        ? "Projeto restaurado."
+                        : "Projeto arquivado; histórico preservado.",
+                    );
+                    setEdit(undefined);
+                    window.dispatchEvent(new Event("has-workflow-updated"));
+                    onChange();
+                  } catch (e) {
+                    setMessage(
+                      e instanceof Error ? e.message : "Falha de conexão.",
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                {edit.archived_at
+                  ? "Restaurar projeto"
+                  : "Arquivar e preservar histórico"}
+              </button>
               {confirmDelete ? (
                 <>
                   <strong>Excluir “{edit.title}”?</strong>
                   <p>
-                    O projeto, o checklist e as notas internas serão excluídos
-                    definitivamente. Documentos, arquivos, orçamentos e
-                    solicitações serão preservados no cliente, sem vínculo com
-                    este projeto.
+                    A exclusão definitiva só é permitida para projetos sem
+                    histórico relevante. Projetos com orçamento, documentos,
+                    análise ou atendimento devem ser arquivados, preservando
+                    todos os vínculos.
                   </p>
                   <div className="row">
                     <button
@@ -256,13 +316,23 @@ export default function Projects({
         </div>
       )}
       {projects
+        .filter((p) =>
+          view === "archived"
+            ? !!p.archived_at
+            : !p.archived_at &&
+              (view === "completed"
+                ? p.status === "concluido"
+                : p.status !== "concluido"),
+        )
         .filter((p) => edit === undefined || p.id !== edit?.id)
         .map((p) => (
           <article className="workspace-card project-card" key={p.id}>
             <div className="row">
               <div>
                 <span className="tag">
-                  {statusLabels[p.status] ?? p.status}
+                  {p.archived_at
+                    ? "Arquivado"
+                    : (statusLabels[p.status] ?? p.status)}
                 </span>
                 <h3>{p.title}</h3>
               </div>

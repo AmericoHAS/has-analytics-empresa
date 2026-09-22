@@ -16,6 +16,8 @@ export default function AdminDeadlines({
       .from("client_projects")
       .select(projectColumns)
       .not("status", "in", "(concluido,cancelado)")
+      .is("archived_at", null)
+      .or("analysis_completed_at.is.null,status.eq.em_revisao")
       .order("due_date", { ascending: true, nullsFirst: false })
       .limit(20)
       .then(({ data, error }) => {

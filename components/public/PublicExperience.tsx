@@ -1,9 +1,7 @@
 "use client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Pause, Play } from "lucide-react";
+import { useEffect, useRef, type ReactNode } from "react";
 export function PublicExperience({ children }: { children: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
-  const [paused, setPaused] = useState(false);
   useEffect(() => {
     if (
       !root.current ||
@@ -28,7 +26,7 @@ export function PublicExperience({ children }: { children: ReactNode }) {
     return () => observer.disconnect();
   }, []);
   return (
-    <div ref={root} className={`public-site ${paused ? "motion-paused" : ""}`}>
+    <div ref={root} className="public-site">
       <div className="brand-watermark" aria-hidden="true">
         <svg viewBox="0 0 800 500">
           <g fill="currentColor">
@@ -52,15 +50,6 @@ export function PublicExperience({ children }: { children: ReactNode }) {
         </svg>
       </div>
       {children}
-      <button
-        type="button"
-        className="motion-toggle"
-        aria-pressed={paused}
-        onClick={() => setPaused((value) => !value)}
-      >
-        {paused ? <Play /> : <Pause />}
-        {paused ? "Ativar animações" : "Pausar animações"}
-      </button>
     </div>
   );
 }

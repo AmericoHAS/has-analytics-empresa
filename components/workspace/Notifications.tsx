@@ -20,6 +20,7 @@ export default function Notifications({
   clientId?: string;
   admin?: boolean;
 }) {
+  const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<Notice[]>([]),
     [message, setMessage] = useState("");
   const load = useCallback(async () => {
@@ -48,8 +49,13 @@ export default function Notifications({
       if (error) setMessage("Não foi possível carregar os avisos.");
       else setRows(data ?? []);
     });
-    const timer = setInterval(() => void load(), 60000);
-    return () => clearInterval(timer);
+    const refresh = () => void load();
+    window.addEventListener("has-workflow-updated", refresh);
+    const timer = setInterval(refresh, 30000);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("has-workflow-updated", refresh);
+    };
   }, [load, clientId]);
   return (
     <div className="stack">
@@ -64,10 +70,9 @@ export default function Notifications({
       </div>
       {admin && (
         <p className="muted">
-          Os avisos ficam registrados aqui. O envio por e-mail depende da
-          ativação do Resend e do agendamento. WhatsApp disponível quando a
-          integração oficial e as preferências do destinatário estiverem
-          ativadas.
+          Os avisos ficam registrados aqui. O envio por e-mail depende da Resend
+          e do agendamento existentes. A automação por WhatsApp fica reservada
+          para uma ativação futura.
         </p>
       )}
       {admin && clientId && (
@@ -77,21 +82,31 @@ export default function Notifications({
             className="stack"
             onSubmit={async (e) => {
               e.preventDefault();
+              if (busy) return;
+              setBusy(true);
               const form = e.currentTarget;
-              const f = new FormData(form);
-              const { error } = await supabase.rpc("create_client_notice", {
-                p_client: clientId,
-                p_title: f.get("title"),
-                p_body: f.get("body"),
-              });
-              setMessage(
-                error
-                  ? error.message
-                  : "Aviso registrado no site e na fila de e-mail.",
-              );
-              if (!error) {
-                form.reset();
-                await load();
+              try {
+                const f = new FormData(form);
+                const { error } = await supabase.rpc("create_client_notice", {
+                  p_client: clientId,
+                  p_title: f.get("title"),
+                  p_body: f.get("body"),
+                });
+                setMessage(
+                  error
+                    ? error.message
+                    : "Aviso registrado no site e na fila de e-mail.",
+                );
+                if (!error) {
+                  form.reset();
+                  await load();
+                }
+              } catch {
+                setMessage(
+                  "Falha de conexão. Confira a lista antes de repetir.",
+                );
+              } finally {
+                setBusy(false);
               }
             }}
           >
@@ -103,7 +118,9 @@ export default function Notifications({
               Mensagem
               <textarea name="body" required maxLength={4000} />
             </label>
-            <button className="btn">Enviar aviso</button>
+            <button className="btn" disabled={busy}>
+              {busy ? "Registrando…" : "Enviar aviso"}
+            </button>
           </form>
         </details>
       )}
@@ -119,11 +136,10 @@ export default function Notifications({
           <small>
             {new Date(n.created_at).toLocaleString("pt-BR")}
             {admin
-              ? ` · E-mail: ${n.email_status === "sent" ? "aceito pelo provedor" : n.email_status} · WhatsApp: ${n.whatsapp_status ?? "não configurado"}`
+              ? ` · E-mail: ${n.email_status === "sent" ? "aceito pelo provedor" : n.email_status}`
               : ""}
           </small>
           {admin && n.last_error && <p>{n.last_error}</p>}
-          {admin && n.whatsapp_error && <p>{n.whatsapp_error}</p>}
           {!n.read_at && (
             <button
               className="btn"
