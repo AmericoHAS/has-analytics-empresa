@@ -116,7 +116,7 @@ export default function Projects({
           </button>
         )}
       </div>
-      <label className="filters">
+      <label className="project-view-filter">
         Exibir projetos{" "}
         <select value={view} onChange={(e) => setView(e.target.value)}>
           <option value="active">Ativos</option>

@@ -2,15 +2,20 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { billingFields } from "@/lib/commercial/billing";
+import { resendClientAccess } from "@/app/admin/actions";
 import { saveBilling } from "@/app/admin/billing-actions";
 export default function ClientProfile({
   clientId,
   admin = false,
   expanded = false,
+  onboarding = false,
+  onSaved,
 }: {
   clientId: string;
   admin?: boolean;
   expanded?: boolean;
+  onboarding?: boolean;
+  onSaved?: () => void;
 }) {
   const [data, setData] = useState<Record<string, string> | null>(null),
     [ready, setReady] = useState(false),
@@ -83,10 +88,22 @@ export default function ClientProfile({
             const form = new FormData(e.currentTarget);
             try {
               const result = await saveBilling(clientId, form);
+              if (result.success && onboarding) {
+                const { error } = await supabase.rpc(
+                  "complete_client_onboarding",
+                );
+                if (error) {
+                  setMessage(
+                    "Os dados foram salvos, mas não foi possível liberar o acesso. Tente salvar novamente.",
+                  );
+                  return;
+                }
+              }
               setMessage(result.message);
               if (result.success) {
                 setData(Object.fromEntries(form) as Record<string, string>);
                 setEditing(false);
+                onSaved?.();
               }
             } catch {
               setMessage("Falha de conexão. Tente novamente.");
@@ -117,7 +134,11 @@ export default function ClientProfile({
             ))}
           </div>
           <button className="btn primary" disabled={busy}>
-            {busy ? "Salvando…" : "Salvar dados"}
+            {busy
+              ? "Salvando…"
+              : onboarding
+                ? "Salvar e acessar meus projetos"
+                : "Salvar dados"}
           </button>
           {!expanded && (
             <button
@@ -129,6 +150,26 @@ export default function ClientProfile({
             </button>
           )}
         </form>
+      )}
+      {admin && (
+        <button
+          type="button"
+          className="btn"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const result = await resendClientAccess(clientId);
+              setMessage(result.message);
+            } catch {
+              setMessage("Falha de comunicação ao reenviar o acesso.");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Reenviar e-mail de acesso à conta
+        </button>
       )}
       <p role="status">{message}</p>
     </section>

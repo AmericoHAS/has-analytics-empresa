@@ -1,139 +1,150 @@
 "use server";
-
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  accessEmailConfig,
+  sendClientAccessEmail,
+} from "@/lib/auth/client-access-email";
 
 export type CreateClientState = {
   success: boolean;
   message: string;
+  clientId?: string;
 };
-
-export async function createClientAction(
-  _previousState: CreateClientState,
-  formData: FormData
-): Promise<CreateClientState> {
-  const fullName = String(formData.get("fullName") ?? "").trim();
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
-  const phone = String(formData.get("phone") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-
-  if (!fullName || !email || !password) {
-    return {
-      success: false,
-      message: "Preencha nome, e-mail e senha.",
-    };
-  }
-
-  if (password.length < 8) {
-    return {
-      success: false,
-      message: "A senha inicial deve possuir pelo menos 8 caracteres.",
-    };
-  }
-
-  // Verifica a sessão de quem está executando a operação.
-  const supabase = await createClient();
-
+async function requireAdmin() {
+  const db = await createClient();
   const {
-    data: claimsData,
-    error: claimsError,
-  } = await supabase.auth.getClaims();
-
-  const adminId = claimsData?.claims?.sub;
-
-  if (claimsError || !adminId) {
-    return {
-      success: false,
-      message: "Sessão administrativa inválida.",
-    };
-  }
-
-  // Confirma no banco que o usuário realmente é administrador.
-  const { data: profile, error: profileError } = await supabase
+    data: { user },
+  } = await db.auth.getUser();
+  if (!user) throw Error("Entre novamente na conta administrativa.");
+  const { data } = await db
     .from("profiles")
     .select("role")
-    .eq("id", adminId)
+    .eq("id", user.id)
     .single();
-
-  if (profileError || profile?.role !== "admin") {
+  if (data?.role !== "admin") throw Error("Acesso restrito ao administrador.");
+  return db;
+}
+export async function resendClientAccess(
+  clientId: string,
+): Promise<CreateClientState> {
+  try {
+    const db = await requireAdmin();
+    const { data, error } = await db
+      .from("profiles")
+      .select("role")
+      .eq("id", clientId)
+      .single();
+    if (error || data?.role !== "client")
+      throw Error("Selecione uma conta de cliente.");
+    await sendClientAccessEmail(clientId);
+    return {
+      success: true,
+      message:
+        "E-mail de acesso aceito pelo serviço de envio. O cliente poderá definir sua senha.",
+      clientId,
+    };
+  } catch (e) {
     return {
       success: false,
-      message: "Você não possui permissão para cadastrar clientes.",
+      message:
+        e instanceof Error
+          ? e.message
+          : "Não foi possível enviar o acesso. Tente novamente.",
     };
   }
-
-  // Somente depois das verificações utilizamos o cliente privilegiado.
-  const adminSupabase = createAdminClient();
-
-  const {
-    data: createdUser,
-    error: createError,
-  } = await adminSupabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: {
-      full_name: fullName,
-    },
-  });
-
-  if (createError) {
+}
+export async function createClientAction(
+  _previousState: CreateClientState,
+  formData: FormData,
+): Promise<CreateClientState> {
+  let clientId: string | undefined;
+  try {
+    const db = await requireAdmin();
+    const fullName = String(formData.get("fullName") ?? "").trim();
+    const email = String(formData.get("email") ?? "")
+      .trim()
+      .toLowerCase();
+    const phone = String(formData.get("phone") ?? "").trim();
+    const requestId = String(formData.get("requestId") ?? "");
     if (
-      createError.message.toLowerCase().includes("already") ||
-      createError.message.toLowerCase().includes("registered")
-    ) {
-      return {
-        success: false,
-        message: "Já existe um usuário cadastrado com este e-mail.",
-      };
+      fullName.length < 2 ||
+      fullName.length > 180 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      email.length > 254 ||
+      phone.length > 30
+    )
+      throw Error("Confira nome, e-mail e telefone.");
+    if (requestId) {
+      const { data: request, error } = await db
+        .from("budget_requests")
+        .select("email,client_id")
+        .eq("id", requestId)
+        .single();
+      if (error || !request || request.email.trim().toLowerCase() !== email)
+        throw Error(
+          "Use o mesmo e-mail da solicitação para preparar o acesso.",
+        );
+      if (request.client_id)
+        throw Error("Esta solicitação já possui cliente. Use Reenviar acesso.");
     }
-
+    accessEmailConfig();
+    const privileged = createAdminClient();
+    const { data, error } = await privileged.auth.admin.createUser({
+      email,
+      password: randomUUID() + randomUUID(),
+      email_confirm: true,
+      user_metadata: { full_name: fullName },
+    });
+    if (error || !data.user)
+      throw Error(
+        error?.message?.match(/already|registered/i)
+          ? "Este e-mail já possui conta. Use Vincular ao cliente e depois Reenviar acesso."
+          : "Não foi possível cadastrar a conta. Confira os dados e tente novamente.",
+      );
+    clientId = data.user.id;
+    const { error: profileError } = await privileged
+      .from("profiles")
+      .upsert({
+        id: clientId,
+        full_name: fullName,
+        phone: phone || null,
+        role: "client",
+      });
+    if (profileError)
+      throw Error(
+        "Conta criada, mas o perfil precisa ser conferido antes de reenviar o acesso.",
+      );
+    let warning = "";
+    if (requestId) {
+      const { error: linkError } = await db.rpc(
+        "link_budget_request_by_email",
+        { p_request_id: requestId },
+      );
+      if (linkError)
+        warning =
+          " O vínculo do projeto ficou pendente: aplique ATUALIZAR-PRIMEIRO-ACESSO.sql e use Vincular ao cliente.";
+    }
+    await sendClientAccessEmail(clientId);
+    revalidatePath("/admin");
+    return {
+      success: true,
+      clientId,
+      message:
+        "Cliente cadastrado. O serviço de e-mail aceitou o link para definir a senha." +
+        warning,
+    };
+  } catch (e) {
     return {
       success: false,
-      message: `Não foi possível criar o cliente: ${createError.message}`,
+      clientId,
+      message:
+        (clientId ? "A conta foi criada; não cadastre novamente. " : "") +
+        (e instanceof Error
+          ? e.message
+          : "Falha de comunicação. Tente novamente."),
     };
   }
-
-  if (!createdUser.user) {
-    return {
-      success: false,
-      message: "O Supabase não retornou o usuário criado.",
-    };
-  }
-
-  /*
-   * O trigger criado anteriormente gera automaticamente o registro
-   * em public.profiles. Aqui atualizamos os dados complementares.
-   */
-  const { error: updateError } = await adminSupabase
-    .from("profiles")
-    .update({
-      full_name: fullName,
-      phone: phone || null,
-      role: "client",
-    })
-    .eq("id", createdUser.user.id);
-
-  if (updateError) {
-    /*
-     * Evita deixar um usuário incompleto no Authentication
-     * caso a criação do perfil falhe.
-     */
-    await adminSupabase.auth.admin.deleteUser(createdUser.user.id);
-
-    return {
-      success: false,
-      message: `O usuário foi criado, mas o perfil não pôde ser configurado: ${updateError.message}`,
-    };
-  }
-
-  revalidatePath("/admin");
-
-  return {
-    success: true,
-    message: `${fullName} foi cadastrado com sucesso.`,
-  };
 }

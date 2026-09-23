@@ -39,7 +39,10 @@ if (process.env.TEST_MISSING_ADMIN_HELPER === "true")
 for (let pass = 0; pass < 2; pass++)
   for (const file of readdirSync("supabase/migrations")
     .filter(
-      (f) => f.endsWith(".sql") && f !== "202609220001_final_workflow.sql",
+      (f) =>
+        f.endsWith(".sql") &&
+        f !== "202609220001_final_workflow.sql" &&
+        f !== "202609230001_client_onboarding.sql",
     )
     .sort())
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
@@ -943,5 +946,8 @@ await import("./final-workflow.scenarios.mjs").then((m) =>
 );
 await import("./final-workflow.scenarios.mjs").then((m) =>
   m.runFinalWorkflow({ db, as, denied, admin, a, b, dataFirst: true }),
+);
+await import("./onboarding.scenarios.mjs").then((m) =>
+  m.runOnboarding({ db, as, denied, admin, a, b }),
 );
 await db.close();

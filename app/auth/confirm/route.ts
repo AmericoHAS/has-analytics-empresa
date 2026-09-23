@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
   if (!tokenHash || type !== "recovery") {
     return NextResponse.redirect(
-      new URL("/login?error=invalid_recovery_link", request.url)
+      new URL("/login?error=invalid_recovery_link", request.url),
     );
   }
 
@@ -25,14 +25,16 @@ export async function GET(request: Request) {
     console.error("Erro ao validar recuperação:", error);
 
     return NextResponse.redirect(
-      new URL("/login?error=invalid_or_expired_recovery_link", request.url)
+      new URL("/login?error=invalid_or_expired_recovery_link", request.url),
     );
   }
 
   return NextResponse.redirect(
     new URL(
-      next.startsWith("/") ? next : "/redefinir-senha",
-      request.url
-    )
+      next === "/redefinir-senha" || next === "/area-cliente"
+        ? next
+        : "/redefinir-senha",
+      request.url,
+    ),
   );
 }

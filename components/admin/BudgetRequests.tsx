@@ -3,12 +3,14 @@ import { intakeFields } from "@/lib/commercial/intake";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { updateRequestStatus } from "@/app/admin/request-actions";
+import { resendClientAccess } from "@/app/admin/actions";
 import NewClientForm from "./NewClientForm";
 
 type BudgetRequest = {
-  intake?: Record<string,string>;
+  intake?: Record<string, string>;
   id: string;
   client_id: string | null;
+  project_id: string | null;
   name: string;
   email: string;
   phone: string | null;
@@ -29,9 +31,7 @@ const states: Record<string, string> = {
 async function fetchRequests(): Promise<BudgetRequest[]> {
   const { data, error } = await supabase
     .from("budget_requests")
-    .select(
-      "*",
-    )
+    .select("*")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as BudgetRequest[];
@@ -164,7 +164,16 @@ export default function BudgetRequests({
                 {item.phone && <span>{item.phone}</span>}
               </div>
               <p className="request-description">{item.description}</p>
-              <dl className="form-grid">{intakeFields.filter(([key])=>item.intake?.[key]).map(([key,label])=><div key={key}><dt>{label}</dt><dd>{item.intake?.[key]}</dd></div>)}</dl>
+              <dl className="form-grid">
+                {intakeFields
+                  .filter(([key]) => item.intake?.[key])
+                  .map(([key, label]) => (
+                    <div key={key}>
+                      <dt>{label}</dt>
+                      <dd>{item.intake?.[key]}</dd>
+                    </div>
+                  ))}
+              </dl>
               {item.client_id ? (
                 <button
                   className="btn primary"
@@ -186,17 +195,75 @@ export default function BudgetRequests({
                     : "Preparar acesso do cliente"}
                 </button>
               )}
-              {!item.client_id && <button className="btn" disabled={busy!==null} onClick={async()=>{setBusy(item.id);try{const {error}=await supabase.rpc("link_budget_request_by_email",{p_request_id:item.id});if(error)setMessage(error.message);else{await load();setMessage("Solicitação vinculada ao cliente pelo e-mail.");}}catch{setMessage("Não foi possível vincular.");}finally{setBusy(null);}}}>Vincular ao cliente já cadastrado com este e-mail</button>}
+              {(!item.client_id || !item.project_id) && (
+                <button
+                  className="btn"
+                  disabled={busy !== null}
+                  onClick={async () => {
+                    setBusy(item.id);
+                    try {
+                      const { error } = await supabase.rpc(
+                        "link_budget_request_by_email",
+                        { p_request_id: item.id },
+                      );
+                      if (error) setMessage(error.message);
+                      else {
+                        window.dispatchEvent(new Event("has-workflow-updated"));
+                        await load();
+                        setMessage(
+                          "Solicitação e projeto vinculados. Abra o cliente para acompanhar.",
+                        );
+                      }
+                    } catch {
+                      setMessage("Não foi possível vincular.");
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                >
+                  Vincular ao cliente já cadastrado com este e-mail
+                </button>
+              )}
+              {item.client_id && (
+                <button
+                  className="btn"
+                  disabled={busy !== null}
+                  onClick={async () => {
+                    setBusy(item.id);
+                    try {
+                      const result = await resendClientAccess(item.client_id!);
+                      setMessage(result.message);
+                    } catch {
+                      setMessage("Falha de comunicação ao reenviar o acesso.");
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                >
+                  {busy === item.id ? "Aguarde…" : "Reenviar e-mail de acesso"}
+                </button>
+              )}
               {!item.client_id && selected === item.id && (
                 <div className="request-form">
                   <h3>Cadastrar cliente</h3>
                   <p>
-                    Confira os dados e defina uma senha inicial. O cadastro usa
-                    o mesmo processo da aba Clientes. Se este e-mail já possui
-                    acesso, gerencie-o por lá.
+                    Confira os dados. Ao aprovar, o cliente receberá um link
+                    para definir a senha e o projeto ficará vinculado à conta.
                   </p>
                   <NewClientForm
                     key={item.id}
+                    requestId={item.id}
+                    onCreated={(feedback) => {
+                      setMessage(feedback);
+                      void fetchRequests()
+                        .then(setItems)
+                        .catch(() =>
+                          setMessage(
+                            feedback +
+                              " Atualize a lista para conferir o vínculo.",
+                          ),
+                        );
+                    }}
                     initialValues={{
                       fullName: item.name,
                       email: item.email,

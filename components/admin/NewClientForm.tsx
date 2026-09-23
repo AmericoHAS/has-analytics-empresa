@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   createClientAction,
+  resendClientAccess,
   type CreateClientState,
 } from "../../app/admin/actions";
 
@@ -13,7 +14,11 @@ const initialState: CreateClientState = {
 
 export default function NewClientForm({
   initialValues,
+  requestId,
+  onCreated,
 }: {
+  requestId?: string;
+  onCreated?: (message: string) => void;
   initialValues?: { fullName: string; email: string; phone: string };
 }) {
   const [state, formAction, pending] = useActionState(
@@ -21,13 +26,21 @@ export default function NewClientForm({
     initialState,
   );
 
+  const [retryMessage, setRetryMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const notified = useRef<string | undefined>(undefined);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
+    if (state.clientId && notified.current !== state.clientId) {
+      notified.current = state.clientId;
+      onCreated?.(state.message);
+      window.dispatchEvent(new Event("has-workflow-updated"));
+    }
     if (state.success) {
       formRef.current?.reset();
     }
-  }, [state.success]);
+  }, [state.success, state.clientId, state.message, onCreated]);
 
   return (
     <form ref={formRef} action={formAction} className="admin-client-form">
@@ -66,21 +79,36 @@ export default function NewClientForm({
         />
       </div>
 
-      <div className="admin-client-field">
-        <label htmlFor="password">Senha inicial</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          placeholder="Mínimo de 8 caracteres"
-          minLength={8}
-          required
-        />
-      </div>
-
-      <button type="submit" disabled={pending}>
-        {pending ? "Cadastrando..." : "Cadastrar cliente"}
+      <input type="hidden" name="requestId" value={requestId ?? ""} />
+      <p>
+        O cliente receberá um link seguro por e-mail para definir a senha e
+        completar o cadastro no primeiro acesso.
+      </p>
+      <button type="submit" disabled={pending || !!state.clientId}>
+        {pending ? "Preparando acesso…" : "Aprovar cadastro e enviar acesso"}
       </button>
+      {state.clientId && (
+        <button
+          type="button"
+          disabled={sending}
+          onClick={async () => {
+            setSending(true);
+            try {
+              const result = await resendClientAccess(state.clientId!);
+              setRetryMessage(result.message);
+            } catch {
+              setRetryMessage(
+                "Falha de comunicação ao enviar o acesso. Tente novamente.",
+              );
+            } finally {
+              setSending(false);
+            }
+          }}
+        >
+          {sending ? "Enviando…" : "Reenviar e-mail de acesso"}
+        </button>
+      )}
+      {retryMessage && <p role="status">{retryMessage}</p>}
 
       {state.message && (
         <p
