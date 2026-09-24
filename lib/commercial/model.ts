@@ -88,3 +88,24 @@ export function estimate(
     ) / 100
   );
 }
+
+export function estimatedItems(
+  model: CommercialModel,
+  items: { description: string; quantity: number; unitPrice: number }[],
+  hours: number,
+  factors: Record<string, number>,
+) {
+  const value = estimate(model, hours, Object.values(factors)
+    .filter((index) => index >= 0 && !!model.coefficients[index])
+    .map((index) => model.coefficients[index].coefficient));
+  const defaults = model.services.filter((service) => service.initial);
+  return Array.from({ length: Math.max(items.length, defaults.length) }, (_, index) => {
+    const item = items[index] ?? defaults[index];
+    if (index >= 3) return { ...item };
+    return { ...item,
+      quantity: index === 1 && hours > 0 ? hours : 1,
+      unitPrice: index === 0 ? Math.round((value - hours * model.hourlyRate) * 100) / 100
+        : index === 1 && hours > 0 ? model.hourlyRate : 0,
+    };
+  });
+}

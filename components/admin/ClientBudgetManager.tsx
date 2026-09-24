@@ -14,7 +14,7 @@ import {
   defaultModel,
   money,
   totals,
-  estimate,
+  estimatedItems,
   type CommercialModel,
 } from "@/lib/commercial/model";
 import {
@@ -329,6 +329,11 @@ export default function ClientBudgetManager({
     }
   }
   const [documentBudget, setDocumentBudget] = useState<string | null>(null);
+  function updateEstimate(nextHours: number, nextFactors: Record<string, number>) {
+    setHours(nextHours);
+    setFactors(nextFactors);
+    setItems((current) => estimatedItems(model, current, nextHours, nextFactors));
+  }
   const sum = totals(items, discount);
   const shownBudgets = budgets.filter((b) =>
     history ? !!b.archived_at : !b.archived_at,
@@ -594,9 +599,9 @@ export default function ClientBudgetManager({
               <summary>Estimar com os critérios da planilha</summary>
               <p>
                 Base + horas × valor-hora + base × soma dos coeficientes.
-                Aplicar substitui os valores dos três itens. As respostas
-                compatíveis do cliente são pré-selecionadas; confira os
-                critérios sem correspondência antes de aplicar.
+                Ao alterar as horas ou os critérios, os valores dos três itens
+                e o total são recalculados automaticamente. As descrições e os
+                serviços adicionais são preservados. Salve para registrar a alteração.
               </p>
               <div className="form-grid">
                 <label>
@@ -607,7 +612,7 @@ export default function ClientBudgetManager({
                     max="10000"
                     step="0.01"
                     value={hours}
-                    onChange={(e) => setHours(Number(e.target.value))}
+                    onChange={(e) => updateEstimate(Number(e.target.value), factors)}
                   />
                 </label>
                 {Array.from(
@@ -619,7 +624,7 @@ export default function ClientBudgetManager({
                       aria-label={g}
                       value={factors[g] ?? -1}
                       onChange={(e) =>
-                        setFactors({ ...factors, [g]: Number(e.target.value) })
+                        updateEstimate(hours, { ...factors, [g]: Number(e.target.value) })
                       }
                     >
                       <option value={-1}>Sem acréscimo</option>
@@ -634,38 +639,7 @@ export default function ClientBudgetManager({
                   </label>
                 ))}
               </div>
-              <button
-                className="btn"
-                type="button"
-                onClick={() => {
-                  const value = estimate(
-                    model,
-                    hours,
-                    Object.values(factors)
-                      .filter((i) => i >= 0)
-                      .map((i) => model.coefficients[i].coefficient),
-                  );
-                  const baseItems = model.services.filter((s) => s.initial);
-                  setItems(
-                    baseItems.map((s, i) => ({
-                      description: s.description,
-                      quantity: i === 1 && hours > 0 ? hours : 1,
-                      unitPrice:
-                        i === 0
-                          ? Math.round(
-                              (value - hours * model.hourlyRate) * 100,
-                            ) / 100
-                          : i === 1
-                            ? hours > 0
-                              ? model.hourlyRate
-                              : 0
-                            : 0,
-                    })),
-                  );
-                }}
-              >
-                Aplicar estimativa aos três itens
-              </button>
+
             </details>
           )}
           <details className="budget-section">
