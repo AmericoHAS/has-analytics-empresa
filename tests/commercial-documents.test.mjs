@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
 const require = createRequire(import.meta.url);
+let crashInjected = false;
 function load(file, recoverPrint = false) {
   const exports = {};
   new Function(
@@ -25,7 +26,18 @@ function load(file, recoverPrint = false) {
       id === "./template-engine"
         ? load("lib/commercial/template-engine.ts", recoverPrint)
         : id === "./pdf-print"
-          ? recoverPrint
+          ? recoverPrint === "closed"
+            ? {
+                ...load("lib/commercial/pdf-print.ts"),
+                printTemplatePdf: async (page, reference) => {
+                  if (!crashInjected) {
+                    crashInjected = true;
+                    await page.context().browser().close();
+                  }
+                  return load("lib/commercial/pdf-print.ts").printTemplatePdf(page, reference);
+                },
+              }
+            : recoverPrint
             ? {
                 printTemplatePdf: (page, reference) => {
                   let attempt = 0;
@@ -44,6 +56,8 @@ function load(file, recoverPrint = false) {
                   .isChromiumPrintFailure,
               }
             : load("lib/commercial/pdf-print.ts")
+          : id === "./pdf-runtime"
+            ? load("lib/commercial/pdf-runtime.ts")
           : id === "../budget-request"
             ? load("lib/budget-request.ts")
             : require(id),
@@ -328,4 +342,13 @@ test("stage and additional-service unit prices never appear in native proposal o
     assert.doesNotMatch(xml, /123,45|7 ×/);
     assert.match(xml, /729,00/);
   }
+});
+
+
+test("a real closed browser is discarded and the proposal is rendered in a new browser", async () => {
+  crashInjected = false;
+  const render = load("lib/commercial/render.ts", "closed").renderCommercial;
+  const files = await render({ ...sample, kind: "orcamento" });
+  assert.equal(crashInjected, true);
+  assert.ok((await PDFDocument.load(files.pdf)).getPageCount() >= 1);
 });

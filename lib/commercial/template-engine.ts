@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { printTemplatePdf, isChromiumPrintFailure } from "./pdf-print";
+import { withPdfCapacity, recoverClosedBrowser, isClosedBrowser, documentBrowserArgs, temporarySpaceMb } from "./pdf-runtime";
 import { randomUUID, createHash } from "node:crypto";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
@@ -48,14 +49,20 @@ export async function fillHasTemplate(
     templateHash: createHash("sha256").update(source).digest("hex"),
   };
 }
-export async function hasTemplatePdf(word: Buffer, kind: TemplateKind) {
+export function hasTemplatePdf(word: Buffer, kind: TemplateKind) {
+  return withPdfCapacity(() => generateTemplatePdf(word, kind));
+}
+async function generateTemplatePdf(word: Buffer, kind: TemplateKind) {
   const diagnostic = {
     reference: randomUUID().slice(0, 8),
     stage: "assets",
     browser: "unknown",
   };
   try {
-    return await renderHasTemplatePdf(word, kind, diagnostic);
+    return await recoverClosedBrowser(
+      () => renderHasTemplatePdf(word, kind, diagnostic),
+      () => console.warn("[HAS_PDF_BROWSER_RESTART]", { ...diagnostic, kind }),
+    );
   } catch (error) {
     // Never log the DOCX, HTML, budget text, client identity or authentication data.
     console.error("[HAS_PDF_FAILED]", {
@@ -64,7 +71,8 @@ export async function hasTemplatePdf(word: Buffer, kind: TemplateKind) {
       bytes: word.length,
       platform: process.platform,
       rssMb: Math.round(process.memoryUsage().rss / 1048576),
-      code: isChromiumPrintFailure(error)
+      temporaryFreeMb: await temporarySpaceMb(),
+      code: isClosedBrowser(error) ? "chromium_closed" : isChromiumPrintFailure(error)
         ? "chromium_print_failed"
         : error instanceof Error && error.name === "TimeoutError"
           ? "timeout"
@@ -107,16 +115,16 @@ async function renderHasTemplatePdf(
       ? "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
       : undefined);
   diagnostic.stage = "launch";
+  if (!local) chromium.setGraphicsMode = false;
   const browser = await browserEngine.launch({
     executablePath: local ?? (await chromium.executablePath()),
-    args: local ? ["--no-sandbox"] : chromium.args,
+    args: local ? ["--no-sandbox"] : documentBrowserArgs(chromium.args),
     headless: true,
   });
   try {
     diagnostic.browser = browser.version();
     diagnostic.stage = "render_docx";
     const page = await browser.newPage();
-    await page.emulateMedia({ media: "print" });
     await page.route("**/*", (route) =>
       /^(data:|blob:|about:)/.test(route.request().url())
         ? route.continue()
@@ -168,12 +176,6 @@ async function renderHasTemplatePdf(
     });
     diagnostic.stage = "prepare_print";
     await page.evaluate(async () => {
-      await Promise.all([
-        document.fonts.load('12px "Times New Roman"'),
-        document.fonts.load('bold 12px "Times New Roman"'),
-        document.fonts.load('italic 12px "Times New Roman"'),
-        document.fonts.load('bold italic 12px "Times New Roman"'),
-      ]);
       await document.fonts.ready;
       await Promise.all(
         Array.from(document.images).map((im) =>

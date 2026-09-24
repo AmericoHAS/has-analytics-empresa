@@ -6,7 +6,7 @@ O erro informado vem de `Page.printToPDF`, depois do preenchimento do Word. O sa
 
 - Mantidos os modelos DOCX originais, marca-d’água, assinatura, logo e espaços de aceite.
 - Mantidos Docxtemplater, docx-preview, Chromium/Playwright e toda a configuração de empacotamento da Vercel, incluindo `playwright-core/**/*`.
-- Preparação explícita do modo de impressão e carregamento das quatro variações da fonte antes da impressão.
+- Atualização de 24/09: restaurada a preparação anterior à impressão, mantendo a espera por fontes e imagens. Ver `CORRECAO-CHROMIUM-PDF.md` para a correção complementar do encerramento do navegador.
 - A impressão normal mantém seu cabeçalho/rodapé. Somente quando o Chromium retorna `Printing failed`, há uma segunda tentativa sem o renderizador auxiliar de cabeçalho/rodapé. As mesmas faixas azuis são desenhadas nas margens de todas as páginas com pdf-lib, já presente no projeto.
 - A segunda tentativa não ignora falha persistente e não publica um documento parcial.
 - Se houver falha, a tela mostra uma referência que também aparece nos logs de execução da Vercel, sob `[HAS_PDF_FAILED]`. Os logs registram etapa, versão do navegador, tamanho do arquivo e uso de memória, sem nomes, dados cadastrais, texto do orçamento ou credenciais.
