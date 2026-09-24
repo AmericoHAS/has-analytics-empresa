@@ -775,6 +775,22 @@ await denied(`select publish_commercial_document('${nc}')`);
 await db.exec(
   `select register_provider_signature('${nc}','${a}/${nc}/provider.pdf');select publish_commercial_document('${nc}')`,
 );
+// Discard only an unused private contract, never a published contract.
+const unusedContract = "aaaaaaaa-1111-4111-8111-111111111111";
+await db.exec(`insert into storage.objects(bucket_id,name) values('commercial-documents','${a}/${unusedContract}/document.pdf'),('commercial-documents','${a}/${unusedContract}/editable.docx');
+insert into commercial_documents(id,client_id,budget_id,kind,title,body,snapshot,source_revision,pdf_path,word_path)
+select '${unusedContract}',client_id,budget_id,kind,title,body,snapshot,source_revision,'${a}/${unusedContract}/document.pdf','${a}/${unusedContract}/editable.docx' from commercial_documents where id='${nc}'`);
+await as(a);
+await denied(`select discard_contract_draft('${unusedContract}')`);
+await as(admin);
+await denied(`select discard_contract_draft('${nc}')`);
+await db.exec(`select discard_contract_draft('${unusedContract}');select discard_contract_draft('${unusedContract}')`);
+assert.equal((await db.query(`select status from commercial_documents where id='${unusedContract}'`)).rows[0].status,'substituido');
+assert.equal((await db.query(`select count(*)::int n from storage.objects where name like '${a}/${unusedContract}/%'`)).rows[0].n,2);
+await as(a);
+assert.equal((await db.query(`select count(*)::int n from commercial_documents where id='${unusedContract}'`)).rows[0].n,0);
+await as(admin);
+console.log('PASS discard private contract: admin only, repeatable, published protected, files retained and draft remains invisible to client');
 const np = (
   await db.query(
     `select * from budget_payments where budget_id='${nativeBudget}'`,

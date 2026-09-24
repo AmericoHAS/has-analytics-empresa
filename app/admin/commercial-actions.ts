@@ -573,3 +573,17 @@ export async function registerCommercialRevision(
     return failure(e);
   }
 }
+
+export async function discardContractDraft(id: string) {
+  try {
+    z.string().uuid().parse(id);
+    const { db } = await session(true);
+    const { error } = await db.rpc("discard_contract_draft", { p_id: id });
+    if (error) throw Error(
+      ["PGRST202", "42883"].includes(error.code)
+        ? "Aplique DESCARTAR-CONTRATOS-RASCUNHO.sql no Supabase para habilitar esta opção."
+        : error.message,
+    );
+    return { success: true, message: "Rascunho retirado da lista ativa. Os arquivos permanecem no histórico privado." };
+  } catch (e) { return failure(e); }
+}

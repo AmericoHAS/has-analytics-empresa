@@ -9,6 +9,7 @@ import {
   generateCommercialDocument,
   commercialDownload,
   publishCommercial,
+  discardContractDraft,
   decideCommercial,
   submitCommercialSignature,
   reviewCommercialSignature,
@@ -86,7 +87,7 @@ export default function CommercialDocuments({
     [editor, setEditor] = useState(false),
     [confirm, setConfirm] = useState<{
       id: string;
-      action: "publish" | "accept" | "reject" | "valid" | "invalid";
+      action: "publish" | "accept" | "reject" | "valid" | "invalid" | "discard";
     } | null>(null);
   const load = useCallback(async () => {
     const [d, b] = await Promise.all([
@@ -399,7 +400,7 @@ export default function CommercialDocuments({
             <article className="workspace-card stack" key={d.id}>
               <div className="row">
                 <h3>{d.title}</h3>
-                <span className="tag">{statuses[d.status]}</span>
+                <span className="tag">{d.status === "substituido" && !d.published_at ? "Rascunho descartado" : statuses[d.status]}</span>
               </div>
               <small>
                 Versão {d.id.slice(0, 8).toUpperCase()} ·{" "}
@@ -521,6 +522,12 @@ export default function CommercialDocuments({
                         }}
                       >
                         Editar como nova versão
+                      </button>
+                    )}
+                    {kind === "contrato" && d.status === "rascunho" && !d.published_at && (
+                      <button type="button" className="btn" disabled={busy}
+                        onClick={() => { setMessage(""); setConfirm({ id: d.id, action: "discard" }); }}>
+                        Descartar rascunho
                       </button>
                     )}
                     {d.status === "rascunho" && !stale && (
@@ -870,7 +877,9 @@ export default function CommercialDocuments({
                     e.preventDefault();
                     const f = new FormData(e.currentTarget);
                     void run(() =>
-                      confirm.action === "publish"
+                      confirm.action === "discard"
+                        ? discardContractDraft(d.id)
+                        : confirm.action === "publish"
                         ? publishCommercial(d.id, f.get("reviewed") === "on")
                         : confirm.action === "accept" ||
                             confirm.action === "reject"
@@ -889,7 +898,9 @@ export default function CommercialDocuments({
                   {message && <p role="alert" className="onboarding-notice">{message}</p>}
                   <label className="check">
                     <input type="checkbox" name="reviewed" required />
-                    {confirm.action === "publish"
+                    {confirm.action === "discard"
+                      ? "Quero retirar este contrato em rascunho da lista ativa. Os arquivos serão preservados no histórico privado, sem aviso ao cliente."
+                      : confirm.action === "publish"
                       ? kind === "contrato"
                         ? "Conferi o contrato assinado pela HAS e quero disponibilizá-lo ao cliente, com aviso na área privada e na fila de e-mail."
                         : "Conferi os PDFs, valores e condições de todas as formas de pagamento deste conjunto e quero disponibilizá-los ao cliente."
@@ -907,7 +918,7 @@ export default function CommercialDocuments({
                   )}
                   <div className="row">
                     <button className="btn primary" disabled={busy}>
-                      {busy ? "Processando…" : confirm.action === "publish" ? "Confirmar disponibilização ao cliente" : "Confirmar"}
+                      {busy ? "Processando…" : confirm.action === "publish" ? "Confirmar disponibilização ao cliente" : confirm.action === "discard" ? "Confirmar descarte" : "Confirmar"}
                     </button>
                     <button
                       type="button"
