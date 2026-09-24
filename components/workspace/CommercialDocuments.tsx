@@ -18,6 +18,7 @@ type Doc = {
   offer_group: string | null;
   payment_option: PaymentQuote | null;
   external_revision: boolean;
+  provider_signed: boolean;
   id: string;
   title: string;
   body: string;
@@ -92,7 +93,7 @@ export default function CommercialDocuments({
       supabase
         .from("commercial_documents")
         .select(
-          "offer_group,payment_option,external_revision,id,title,body,budget_id,source_revision,status,created_at,published_at,decided_at,decision_note,signature_status,signed_path",
+          "offer_group,payment_option,external_revision,provider_signed,id,title,body,budget_id,source_revision,status,created_at,published_at,decided_at,decision_note,signature_status,signed_path",
         )
         .eq("client_id", clientId)
         .eq("kind", kind)
@@ -148,6 +149,9 @@ export default function CommercialDocuments({
     const t = setTimeout(() => void load(), 0);
     return () => clearTimeout(t);
   }, [load, refreshKey]);
+  useEffect(() => {
+    if (confirm) document.getElementById(`commercial-confirm-${confirm.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [confirm]);
   async function run(
     action: () => Promise<{ success: boolean; message: string }>,
   ) {
@@ -449,8 +453,11 @@ export default function CommercialDocuments({
                         const r = await registerProviderSignature(d.id, path);
                         if (!r.success) throw Error(r.message);
                         path = "";
-                        setMessage(r.message);
+                        setMessage("PDF assinado salvo. O contrato ainda não foi enviado: confira o arquivo e confirme a disponibilização abaixo.");
+                        setConfirm({ id: d.id, action: "publish" });
                         await load();
+                        window.dispatchEvent(new Event("has-workflow-updated"));
+                        onChange?.();
                       } catch (e) {
                         if (path)
                           await supabase.storage
@@ -465,7 +472,7 @@ export default function CommercialDocuments({
                     }}
                   >
                     <label>
-                      Contrato já assinado pela HAS
+                      {d.provider_signed ? "Substituir PDF assinado pela HAS" : "Contrato já assinado pela HAS"}
                       <input
                         name="providerPdf"
                         type="file"
@@ -474,10 +481,17 @@ export default function CommercialDocuments({
                       />
                     </label>
                     <button className="btn" disabled={busy}>
-                      Registrar PDF assinado pela HAS
+                      {busy ? "Salvando…" : "Salvar PDF e continuar para envio"}
                     </button>
                   </form>
                 )}
+              {admin && kind === "contrato" && d.status === "rascunho" && (
+                <p className="onboarding-notice" role="status">
+                  {d.provider_signed
+                    ? "Assinatura da HAS registrada. Falta confirmar a disponibilização para o cliente receber o contrato."
+                    : "Anexe o PDF assinado pela HAS antes de disponibilizar este contrato."}
+                </p>
+              )}
               <div className="commercial-document-actions">
                 <button
                   className="btn"
@@ -512,7 +526,7 @@ export default function CommercialDocuments({
                     {d.status === "rascunho" && !stale && (
                       <button
                         className="btn primary"
-                        disabled={busy}
+                        disabled={busy || (kind === "contrato" && !d.provider_signed)}
                         onClick={() =>
                           setConfirm({ id: d.id, action: "publish" })
                         }
@@ -850,6 +864,7 @@ export default function CommercialDocuments({
               )}
               {confirm?.id === d.id && (
                 <form
+                  id={`commercial-confirm-${d.id}`}
                   className="onboarding-notice stack"
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -874,7 +889,9 @@ export default function CommercialDocuments({
                   <label className="check">
                     <input type="checkbox" name="reviewed" required />
                     {confirm.action === "publish"
-                      ? "Conferi os PDFs, valores e condições de todas as formas de pagamento deste conjunto e quero disponibilizá-los ao cliente."
+                      ? kind === "contrato"
+                        ? "Conferi o contrato assinado pela HAS e quero disponibilizá-lo ao cliente, com aviso na área privada e na fila de e-mail."
+                        : "Conferi os PDFs, valores e condições de todas as formas de pagamento deste conjunto e quero disponibilizá-los ao cliente."
                       : confirm.action === "valid"
                         ? "Conferi o arquivo no validador e a identidade do signatário."
                         : confirm.action === "accept"
@@ -889,7 +906,7 @@ export default function CommercialDocuments({
                   )}
                   <div className="row">
                     <button className="btn primary" disabled={busy}>
-                      Confirmar
+                      {busy ? "Processando…" : confirm.action === "publish" ? "Confirmar disponibilização ao cliente" : "Confirmar"}
                     </button>
                     <button
                       type="button"
