@@ -16,6 +16,7 @@ export default function BudgetPlanningFields({
   base,
   additions,
   onDefaults,
+  onPricingChange,
 }: {
   source?: {
     id: string;
@@ -32,6 +33,7 @@ export default function BudgetPlanningFields({
   base: number;
   additions: number;
   onDefaults?: (data: Record<string, string | number>) => void;
+  onPricingChange: (pricing: { hours: number; base: number; additions: number }) => void;
 }) {
   const [values, setValues] = useState<Record<string, string | number>>({});
   const [request, setRequest] = useState(source?.id ?? "");
@@ -59,7 +61,7 @@ export default function BudgetPlanningFields({
       }
       if (budgetId) {
         setValues(data ?? {});
-        setRequest(data?.request_id ?? source?.id ?? "");
+        setRequest(data && "request_id" in data ? String(data.request_id ?? source?.id ?? "") : source?.id ?? "");
       } else {
         const defaults = Object.fromEntries(
           Object.entries(data ?? {}).filter(
@@ -123,6 +125,7 @@ export default function BudgetPlanningFields({
         abaixo é interna e não aparece no documento. Os valores das etapas ficam
         apenas no cálculo administrativo.
       </p>
+      <p className="muted">Alterar horas, valor base ou acréscimos recalcula o valor final do orçamento.</p>
       <div className="form-grid">
         {[
           ["dataAssessment", "Avaliação técnica do banco", "data_assessment"],
@@ -152,9 +155,15 @@ export default function BudgetPlanningFields({
               value={
                 values[String(key)] ?? Math.round(Number(value) * 100) / 100
               }
-              onChange={(e) =>
-                setValues((v) => ({ ...v, [String(key)]: e.target.value }))
-              }
+              onChange={(e) => {
+                const next = { ...values, [String(key)]: e.target.value };
+                setValues(next);
+                onPricingChange({
+                  hours: Number(next.estimated_hours ?? hours),
+                  base: Number(next.base_value ?? base),
+                  additions: Number(next.additions ?? additions),
+                });
+              }}
             />
           </label>
         ))}

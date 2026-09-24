@@ -762,6 +762,13 @@ export default function ClientBudgetManager({
             source={source}
             context={requestDetails}
             onDefaults={edit ? undefined : applyProjectDefaults}
+            onPricingChange={(pricing) => {
+              setHours(pricing.hours);
+              setItems((current) => estimatedItems(
+                { ...model, baseValue: pricing.base + pricing.additions, coefficients: [] },
+                current, pricing.hours, {},
+              ));
+            }}
             projectId={projectId}
             key={`${edit?.id ?? "new"}:${source?.id ?? "planning"}:${projectId}`}
             clientId={clientId}
