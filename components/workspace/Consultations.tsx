@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, useRef } from "react";
 import ConsultationCalendar from "./ConsultationCalendar";
-import { availabilityError, addDays } from "@/lib/workspace/calendar";
+import AvailabilityDialog from "./AvailabilityDialog";
 import { actionError } from "@/lib/workspace/action-errors";
 import { supabase } from "@/lib/supabase";
 type Slot = {
@@ -46,6 +46,7 @@ export default function Consultations({
 }) {
   const selection = useRef<HTMLDivElement>(null);
   const [opening, setOpening] = useState("");
+  const [calendarDay, setCalendarDay] = useState<string | undefined>();
   const [selected, setSelected] = useState<Slot | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]),
     [bookings, setBookings] = useState<Booking[]>([]),
@@ -53,14 +54,14 @@ export default function Consultations({
     [busy, setBusy] = useState(false),
     [project, setProject] = useState(projects[0]?.id ?? "");
   useEffect(() => {
-    if (opening || selected)
+    if (selected && (!admin || selected.busy))
       selection.current?.scrollIntoView({
         block: "nearest",
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
           ? "instant"
           : "smooth",
       });
-  }, [opening, selected]);
+  }, [selected, admin]);
   const load = useCallback(async () => {
     const [s, b] = await Promise.all([
       supabase.rpc("list_consultation_slots"),
@@ -94,12 +95,15 @@ export default function Consultations({
     action: () => PromiseLike<{
       error: { message: string; code?: string } | null;
     }>,
+    focusDay?: string,
   ) {
     setBusy(true);
+    setMessage("");
     try {
       const { error } = await action();
       if (error) throw Error(actionError(error, "atualizar a agenda"));
       setMessage("Agenda atualizada com sucesso.");
+      if (focusDay) setCalendarDay(focusDay);
       setOpening("");
       setSelected(null);
       await load();
@@ -130,6 +134,8 @@ export default function Consultations({
       </div>
       {canChoose && (
         <ConsultationCalendar
+          key={calendarDay ?? "initial"}
+          initialDay={calendarDay}
           slots={slots.map((s) => ({
             ...s,
             bookingStatus: admin
@@ -153,102 +159,34 @@ export default function Consultations({
         />
       )}
       <div ref={selection} />
-      {admin && opening && (
-        <form
-          className="calendar-selection stack"
-          key={opening}
-          onSubmit={(e) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget),
-              start = String(f.get("start")),
-              end = String(f.get("end")),
-              minutes = Number(f.get("minutes"));
-            const invalid = availabilityError(start, end, minutes);
-            if (invalid) {
-              setMessage(invalid);
-              return;
-            }
-            void run(() =>
-              supabase.rpc("create_consultation_availability", {
-                p_start: new Date(start + "-03:00").toISOString(),
-                p_end: new Date(end + "-03:00").toISOString(),
-                p_minutes: minutes,
-                p_mode: f.get("mode"),
-                p_location: f.get("location"),
-              }),
-            );
+      {admin && (opening || (selected && !selected.busy)) && (
+        <AvailabilityDialog
+          key={opening || selected!.id}
+          initialStart={opening || new Date(Date.parse(selected!.starts_at) - 3 * 3600000).toISOString().slice(0, 16)}
+          initialMinutes={opening ? 60 : (Date.parse(selected!.ends_at) - Date.parse(selected!.starts_at)) / 60000}
+          initialMode={opening ? "online" : selected!.mode}
+          initialLocation={opening ? "" : selected!.location}
+          editing={!opening}
+          busy={busy}
+          message={message}
+          onClose={() => { setOpening(""); setSelected(null); setMessage(""); }}
+          onSave={({ start, end, minutes, mode, location }) => {
+            void run(() => opening
+              ? supabase.rpc("create_consultation_availability", {
+                  p_start: new Date(start + "-03:00").toISOString(),
+                  p_end: new Date(end + "-03:00").toISOString(),
+                  p_minutes: minutes, p_mode: mode, p_location: location,
+                })
+              : supabase.from("consultation_slots").update({
+                  starts_at: new Date(start + "-03:00").toISOString(),
+                  ends_at: new Date(end + "-03:00").toISOString(), mode, location,
+                }).eq("id", selected!.id).select("id").single(), start.slice(0, 10));
           }}
-        >
-          <div className="row">
-            <h4>Abrir horários de atendimento</h4>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setOpening("")}
-            >
-              Fechar
-            </button>
-          </div>
-          <div className="form-grid">
-            <label>
-              Início
-              <input
-                required
-                type="datetime-local"
-                name="start"
-                defaultValue={opening}
-              />
-            </label>
-            <label>
-              Fim
-              <input
-                required
-                type="datetime-local"
-                name="end"
-                defaultValue={
-                  Number(opening.slice(11, 13)) === 23
-                    ? addDays(opening.slice(0, 10), 1) +
-                      "T00:" +
-                      opening.slice(14)
-                    : opening.slice(0, 11) +
-                      String(Number(opening.slice(11, 13)) + 1).padStart(
-                        2,
-                        "0",
-                      ) +
-                      opening.slice(13)
-                }
-              />
-            </label>
-            <label>
-              Duração de cada reunião
-              <select name="minutes" defaultValue="60">
-                {[15, 30, 45, 60, 90, 120].map((n) => (
-                  <option key={n} value={n}>
-                    {n} minutos
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Modalidade
-              <select name="mode">
-                <option value="online">Online — Google Meet</option>
-                <option value="presencial">Presencial</option>
-              </select>
-            </label>
-            <label>
-              Local (obrigatório para presencial)
-              <input name="location" maxLength={500} />
-            </label>
-          </div>
-          <p className="muted">
-            O período será dividido em reuniões da duração escolhida. Exemplo:
-            9h às 12h → três horários de uma hora.
-          </p>
-          <button className="btn primary" disabled={busy}>
-            {busy ? "Salvando…" : "Disponibilizar horários"}
-          </button>
-        </form>
+          onRemove={!opening ? () => {
+            if (confirm("Remover este horário disponível do calendário?"))
+              void run(() => supabase.from("consultation_slots").update({ enabled: false }).eq("id", selected!.id).select("id").single());
+          } : undefined}
+        />
       )}
       {!admin && (
         <label>
@@ -268,7 +206,7 @@ export default function Consultations({
           {message}
         </p>
       )}
-      {selected && canChoose && (
+      {selected && canChoose && (!admin || selected.busy) && (
         <div className="calendar-selection stack">
           <div className="row">
             <strong>{when(selected.starts_at)}</strong>
@@ -290,127 +228,6 @@ export default function Consultations({
                 ? " Consulte os detalhes abaixo."
                 : " Escolha um horário disponível."}
             </p>
-          ) : admin ? (
-            <form
-              className="stack"
-              key={selected.id}
-              onSubmit={(e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                const start = String(f.get("start"));
-                const minutes = Number(f.get("minutes"));
-                const begin = Date.parse(start + "-03:00");
-                if (!Number.isFinite(begin) || begin <= Date.now()) {
-                  setMessage("Escolha um início futuro.");
-                  return;
-                }
-                const location = String(f.get("location") ?? "").trim();
-                if (f.get("mode") === "presencial" && !location) {
-                  setMessage("Informe o endereço presencial.");
-                  return;
-                }
-                void run(() =>
-                  supabase
-                    .from("consultation_slots")
-                    .update({
-                      starts_at: new Date(begin).toISOString(),
-                      ends_at: new Date(begin + minutes * 60000).toISOString(),
-                      mode: f.get("mode"),
-                      location,
-                    })
-                    .eq("id", selected.id)
-                    .select("id")
-                    .single(),
-                );
-              }}
-            >
-              <div className="form-grid">
-                <label>
-                  Início
-                  <input
-                    name="start"
-                    type="datetime-local"
-                    required
-                    defaultValue={new Date(
-                      Date.parse(selected.starts_at) - 3 * 3600000,
-                    )
-                      .toISOString()
-                      .slice(0, 16)}
-                  />
-                </label>
-                <label>
-                  Duração
-                  <select
-                    name="minutes"
-                    defaultValue={
-                      (Date.parse(selected.ends_at) -
-                        Date.parse(selected.starts_at)) /
-                      60000
-                    }
-                  >
-                    {Array.from(
-                      new Set([
-                        15,
-                        30,
-                        45,
-                        60,
-                        90,
-                        120,
-                        (Date.parse(selected.ends_at) -
-                          Date.parse(selected.starts_at)) /
-                          60000,
-                      ]),
-                    )
-                      .sort((a, b) => a - b)
-                      .map((n) => (
-                        <option key={n} value={n}>
-                          {n} minutos
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label>
-                  Modalidade
-                  <select name="mode" defaultValue={selected.mode}>
-                    <option value="online">Online</option>
-                    <option value="presencial">Presencial</option>
-                  </select>
-                </label>
-                <label>
-                  Local presencial
-                  <input
-                    name="location"
-                    maxLength={500}
-                    defaultValue={selected.location}
-                  />
-                </label>
-              </div>
-              <div className="actions">
-                <button className="btn primary" disabled={busy}>
-                  {busy ? "Salvando…" : "Salvar horário"}
-                </button>
-                <button
-                  className="btn danger-text"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    if (
-                      confirm("Remover este horário disponível do calendário?")
-                    )
-                      void run(() =>
-                        supabase
-                          .from("consultation_slots")
-                          .update({ enabled: false })
-                          .eq("id", selected.id)
-                          .select("id")
-                          .single(),
-                      );
-                  }}
-                >
-                  Remover disponibilidade
-                </button>
-              </div>
-            </form>
           ) : (
             <button
               className="btn primary"

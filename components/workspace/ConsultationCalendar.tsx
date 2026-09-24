@@ -5,6 +5,7 @@ import {
   addDays,
   brazilDay,
   weekStart,
+  nextMeetingStart,
   type CalendarSlot,
 } from "@/lib/workspace/calendar";
 const clock = (v: string) =>
@@ -15,18 +16,20 @@ const clock = (v: string) =>
   });
 export default function ConsultationCalendar({
   slots,
+  initialDay,
   admin,
   busy,
   onOpen,
   onSelect,
 }: {
   slots: CalendarSlot[];
+  initialDay?: string;
   admin: boolean;
   busy: boolean;
   onOpen: (date: string) => void;
   onSelect: (slot: CalendarSlot) => void;
 }) {
-  const [day, setDay] = useState(() => brazilDay()),
+  const [day, setDay] = useState(() => initialDay ?? brazilDay()),
     [view, setView] = useState("week");
   const first = view === "week" ? weekStart(day) : day,
     days = Array.from({ length: view === "week" ? 7 : 1 }, (_, i) =>
@@ -91,7 +94,7 @@ export default function ConsultationCalendar({
             <button
               className="btn primary"
               disabled={busy}
-              onClick={() => onOpen(day + "T09:00")}
+              onClick={() => onOpen(day <= brazilDay() ? nextMeetingStart() : day + "T09:00")}
             >
               <Plus size={17} />
               Disponibilizar
@@ -162,7 +165,7 @@ export default function ConsultationCalendar({
                   <button
                     key={i}
                     className="calendar-cell"
-                    disabled={busy}
+                    disabled={busy || Date.parse(`${d}T${String(startHour + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}-03:00`) <= Date.now()}
                     aria-label={`Disponibilizar ${d} às ${String(startHour + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`}
                     onClick={() =>
                       onOpen(

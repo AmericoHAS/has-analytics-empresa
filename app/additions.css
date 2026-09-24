@@ -1036,3 +1036,27 @@ a[href*="wa.me"] svg {
 .budget-section[open] > summary, .budget-item[open] > summary { margin-bottom:1rem; }
 .budget-item { margin-block:.75rem; background:white; }
 .budget-section .form-grid { margin-block:1rem; }
+
+/* Calendar editor: native modal keeps focus inside the form and returns it on close. */
+.availability-dialog{width:min(640px,calc(100vw - 32px));max-height:calc(100dvh - 32px);margin:auto;padding:0;border:1px solid #d5e5ef;border-radius:22px;color:#13304a;background:#fff;box-shadow:0 28px 90px #071f3a45;overflow:auto}
+.availability-dialog::backdrop{background:#071f3a99;backdrop-filter:blur(4px)}
+.availability-form{padding:24px;display:grid;gap:20px}
+.availability-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.availability-heading .eyebrow{display:flex;align-items:center;gap:8px;color:#087d9a}
+.availability-heading h3{margin:8px 0;font-size:1.35rem}
+.availability-heading p{margin:0;color:#536d82;font-size:.9rem}
+.availability-fields{border:0;padding:0;margin:0;min-width:0;display:grid;gap:18px}
+.availability-fields .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.availability-fields label{display:grid;align-content:start;gap:8px;font-size:.9rem;font-weight:600;min-width:0}
+.availability-fields input,.availability-fields select{width:100%;min-width:0;box-sizing:border-box;border:1px solid #bfd2e0;border-radius:10px;background:#fff;color:#13304a;padding:12px;font:inherit;font-weight:400}
+.availability-fields input:focus-visible,.availability-fields select:focus-visible{outline:3px solid #0aadc740;outline-offset:2px;border-color:#0891b2}
+.availability-location{grid-column:1/-1}
+.availability-summary{display:grid;gap:7px;padding:16px 18px;border:1px solid #b8dfe9;border-radius:14px;background:#eef9fc}
+.availability-summary span,.availability-summary small{color:#476c80;font-size:.85rem}
+.availability-summary strong{font-size:1.2rem;color:#074964}
+.availability-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding-top:16px;border-top:1px solid #e1eaf1}
+.availability-actions .danger-text{margin-right:auto;color:#a12c32;border-color:#fecaca}
+.availability-feedback{margin:0;padding:12px;border-radius:10px;background:#fff4df;color:#784100}
+.calendar-cell:disabled{cursor:not-allowed;background:#edf1f550}
+@media(max-width:540px){.availability-form{padding:18px;gap:16px}.availability-fields .form-grid{grid-template-columns:1fr}.availability-actions .btn{flex:1 1 auto}.availability-heading h3{font-size:1.15rem}}
+@media(prefers-reduced-motion:no-preference){.availability-dialog[open]{animation:availability-enter .18s ease-out}@keyframes availability-enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}}

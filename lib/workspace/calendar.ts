@@ -43,3 +43,18 @@ export type CalendarSlot = {
   location: string;
   busy: boolean;
 };
+
+// Values used by datetime-local are explicitly Brasilia wall time, independent
+// of the browser/computer timezone. Return an empty value while a field is blank.
+export function meetingEnd(start: string, minutes: number, count = 1) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(start) ||
+      !Number.isInteger(minutes) || minutes <= 0 ||
+      !Number.isInteger(count) || count < 1 || minutes * count > 1440) return "";
+  const parsed = Date.parse(start + "-03:00");
+  if (!Number.isFinite(parsed)) return "";
+  return new Date(parsed + minutes * count * 60000 - 3 * 3600000).toISOString().slice(0, 16);
+}
+export function nextMeetingStart(now = Date.now()) {
+  const next = Math.ceil((now + 60000) / 1800000) * 1800000;
+  return new Date(next - 3 * 3600000).toISOString().slice(0, 16);
+}

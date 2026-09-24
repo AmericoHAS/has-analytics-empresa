@@ -30,3 +30,12 @@ test("availability accepts a long window split into complete meetings, rejects i
   ])
     assert.ok(lib.availabilityError(start, end, mins, now));
 });
+
+test("meeting end updates with duration and consecutive slots across day and year boundaries", () => {
+  assert.equal(lib.meetingEnd("2026-09-25T09:00", 45), "2026-09-25T09:45");
+  assert.equal(lib.meetingEnd("2026-09-25T09:00", 90, 3), "2026-09-25T13:30");
+  assert.equal(lib.meetingEnd("2026-12-31T23:30", 60), "2027-01-01T00:30");
+  assert.equal(lib.meetingEnd("", 60), "");
+  assert.equal(lib.meetingEnd("2026-09-25T09:00", 120, 13), "");
+  assert.equal(lib.nextMeetingStart(Date.parse("2026-09-25T12:08:00Z")), "2026-09-25T09:30");
+});
