@@ -886,6 +886,7 @@ export default function CommercialDocuments({
                     );
                   }}
                 >
+                  {message && <p role="alert" className="onboarding-notice">{message}</p>}
                   <label className="check">
                     <input type="checkbox" name="reviewed" required />
                     {confirm.action === "publish"

@@ -351,18 +351,35 @@ export async function commercialDownload(
   return data.signedUrl;
 }
 export async function publishCommercial(id: string, reviewed: boolean) {
+  const reference = randomUUID().slice(0, 8);
+  let stage = "session";
   try {
     z.string().uuid().parse(id);
     if (reviewed !== true) throw Error("Confira o PDF e confirme a revisão.");
     const { db } = await session(true);
+    stage = "publish";
     const { error } = await db.rpc("publish_commercial_document", { p_id: id });
-    if (error) throw Error(error.message);
+    if (error) {
+      console.error("[HAS_COMMERCIAL_PUBLISH_FAILED]", { reference, stage, code: error.code });
+      return { success: false, message: `Não foi possível disponibilizar: ${error.message} (referência ${reference}).` };
+    }
+    stage = "verify";
+    const { data: published, error: verificationError } = await db
+      .from("commercial_documents")
+      .select("status,published_at")
+      .eq("id", id)
+      .single();
+    if (verificationError || !published?.published_at || !["enviado", "aprovado"].includes(published.status)) {
+      console.error("[HAS_COMMERCIAL_PUBLISH_FAILED]", { reference, stage, code: verificationError?.code ?? "publication_not_confirmed" });
+      return { success: false, message: `Não foi possível confirmar a disponibilização. Atualize a lista antes de tentar novamente. Referência: ${reference}.` };
+    }
     return {
       success: true,
       message:
         "Documento disponível na área do cliente. O aviso foi registrado na fila de e-mail; confira a entrega na aba Avisos.",
     };
   } catch (e) {
+    console.error("[HAS_COMMERCIAL_PUBLISH_FAILED]", { reference, stage, code: "action_failed" });
     return failure(e);
   }
 }
