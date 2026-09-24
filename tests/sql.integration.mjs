@@ -43,7 +43,8 @@ for (let pass = 0; pass < 2; pass++)
         f.endsWith(".sql") &&
         f !== "202609220001_final_workflow.sql" &&
         f !== "202609230001_client_onboarding.sql" &&
-        f !== "202609230002_budget_context.sql",
+        f !== "202609230002_budget_context.sql" &&
+        f !== "202609240002_independent_consultations.sql",
     )
     .sort())
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
@@ -970,4 +971,5 @@ await import("./onboarding.scenarios.mjs").then((m) =>
 await import("./budget-context.scenarios.mjs").then((m) =>
   m.runBudgetContext({ db, as, denied, admin, a, b }),
 );
+await import("./independent-consultations.scenarios.mjs").then((m) => m.runIndependentConsultations({ db, as, denied, admin, a, b }));
 await db.close();

@@ -152,16 +152,19 @@ export default function ProjectLifecycle({
                   : "Concluir análise e liberar consultoria"}
               </button>
             )}
-          {project.analysis_completed_at && state?.facts.meetingDone && (
+          {project.analysis_completed_at && (
             <button
               className="btn primary"
               disabled={busy}
               onClick={() => void action("close_analysis_project")}
             >
-              Encerrar projeto após revisões e recibo
+              Encerrar projeto
             </button>
           )}
         </div>
+      )}
+      {admin && project.analysis_completed_at && !project.archived_at && project.status !== "concluido" && (
+        <p className="muted">Revisões e encerramento não dependem da consultoria. Conclua as revisões abertas e disponibilize o recibo, quando houver pagamento confirmado.</p>
       )}
       <div className="project-action-row">
         {(admin || project.analysis_completed_at) && (
