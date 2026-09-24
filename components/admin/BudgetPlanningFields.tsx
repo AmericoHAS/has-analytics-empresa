@@ -4,9 +4,9 @@ import { supabase } from "@/lib/supabase";
 import PresetField, {
   projectPresets,
 } from "@/components/workspace/PresetField";
-import { intakeFields } from "@/lib/commercial/intake";
 export default function BudgetPlanningFields({
   source,
+  context,
   projectId,
   clientId,
   budgetId,
@@ -15,12 +15,14 @@ export default function BudgetPlanningFields({
   hours,
   base,
   additions,
+  onDefaults,
 }: {
   source?: {
     id: string;
     desired_date: string | null;
     intake: Record<string, string>;
   } | null;
+  context: Record<string, string>;
   projectId?: string;
   clientId: string;
   budgetId?: string;
@@ -29,66 +31,60 @@ export default function BudgetPlanningFields({
   hours: number;
   base: number;
   additions: number;
+  onDefaults?: (data: Record<string, string | number>) => void;
 }) {
-  const [values, setValues] = useState<Record<string, string | number>>({}),
-    [requests, setRequests] = useState<
-      { id: string; title: string; intake?: Record<string, string> }[]
-    >([]),
-    [request, setRequest] = useState(source?.id ?? ""),
-    [ready, setReady] = useState(!budgetId && !projectId),
-    [message, setMessage] = useState("");
+  const [values, setValues] = useState<Record<string, string | number>>({});
+  const [request, setRequest] = useState(source?.id ?? "");
+  const [ready, setReady] = useState(!budgetId && !projectId);
+  const [message, setMessage] = useState("");
   useEffect(() => {
-    supabase
-      .from("budget_requests")
-      .select("id,title,intake")
-      .eq("client_id", clientId)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setRequests(data ?? []));
-    if (budgetId)
-      supabase
-        .from("budget_planning")
-        .select("*")
-        .eq("budget_id", budgetId)
-        .maybeSingle()
-        .then(({ data, error }) => {
-          if (error)
-            setMessage(
-              "Não foi possível carregar os campos internos. Reabra após atualizar o banco.",
-            );
-          else {
-            setValues(data ?? {});
-            setRequest(data?.request_id ?? "");
-            setReady(true);
-          }
-        });
-    else if (projectId)
-      supabase
-        .from("project_private")
-        .select("department,data_assessment,complexity,estimated_hours")
-        .eq("project_id", projectId)
-        .maybeSingle()
-        .then(({ data, error }) => {
-          if (error) {
-            setMessage(
-              "Não foi possível carregar o planejamento do projeto. Reabra o formulário para tentar novamente.",
-            );
-            return;
-          }
-          setValues(
-            Object.fromEntries(
-              Object.entries(data ?? {}).filter(
-                ([, value]) => value !== "" && value !== 0 && value !== null,
-              ),
-            ),
-          );
-          setReady(true);
-        });
-  }, [clientId, budgetId, projectId]);
+    if (!budgetId && !projectId) return;
+    let active = true;
+    void (async () => {
+      const query = budgetId
+        ? supabase.from("budget_planning").select("*").eq("budget_id", budgetId)
+        : supabase
+            .from("project_private")
+            .select(
+              "department,research_area,data_assessment,complexity,estimated_hours,admin_notes",
+            )
+            .eq("project_id", projectId!);
+      const { data, error } = await query.maybeSingle();
+      if (!active) return;
+      if (error) {
+        setMessage(
+          "Não foi possível carregar o planejamento. Feche e reabra a proposta para tentar novamente.",
+        );
+        return;
+      }
+      if (budgetId) {
+        setValues(data ?? {});
+        setRequest(data?.request_id ?? source?.id ?? "");
+      } else {
+        const defaults = Object.fromEntries(
+          Object.entries(data ?? {}).filter(
+            ([, v]) => v !== "" && v !== 0 && v !== null,
+          ),
+        ) as Record<string, string | number>;
+        setValues({ ...defaults, internal_notes: defaults.admin_notes ?? "" });
+        onDefaults?.(defaults);
+      }
+      setReady(true);
+    })().catch(() => {
+      if (active)
+        setMessage(
+          "Falha de conexão ao carregar o planejamento. Feche e reabra a proposta.",
+        );
+    });
+    return () => {
+      active = false;
+    };
+  }, [clientId, budgetId, projectId, source?.id, onDefaults]);
   if (!ready)
     return (
       <fieldset>
-        <legend>Campos comerciais</legend>
-        <p>{message || "Carregando…"}</p>
+        <legend>Planejamento</legend>
+        <p role="status">{message || "Carregando dados do projeto…"}</p>
         <input
           required
           value=""
@@ -97,38 +93,15 @@ export default function BudgetPlanningFields({
         />
       </fieldset>
     );
-  const selected = requests.find((r) => r.id === request);
   return (
-    <fieldset className="project-metadata-fields">
-      <legend>Planejamento e condições da proposta</legend>
-      <label>
-        Solicitação vinculada
-        <select
-          name="requestId"
-          value={request}
-          onChange={(e) => setRequest(e.target.value)}
-        >
-          <option value="">Sem solicitação vinculada</option>
-          {requests.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.title}
-            </option>
-          ))}
-        </select>
-      </label>
-      {selected && (
-        <details>
-          <summary>Consultar dados da solicitação original</summary>
-          <dl className="form-grid">
-            {intakeFields.map(([key, label]) => (
-              <div key={key}>
-                <dt>{label}</dt>
-                <dd>{selected.intake?.[key] || "A definir"}</dd>
-              </div>
-            ))}
-          </dl>
-        </details>
-      )}
+    <details className="budget-section">
+      <summary>Prazo e planejamento interno</summary>
+      <input type="hidden" name="requestId" value={request} />
+      <input
+        type="hidden"
+        name="department"
+        value={context.department ?? String(values.department ?? "")}
+      />
       <div className="form-grid">
         <label>
           Forma / condições de pagamento
@@ -139,72 +112,60 @@ export default function BudgetPlanningFields({
           <input
             name="finalDueDate"
             type="date"
-            defaultValue={delivery || source?.desired_date || ""}
+            defaultValue={
+              budgetId ? delivery : delivery || source?.desired_date || ""
+            }
           />
         </label>
       </div>
-      <details>
-        <summary>Anotações internas · opcional</summary>
-        <p className="muted">
-          Não é necessário preencher para salvar ou gerar o orçamento. As notas
-          internas, avaliação e cálculo ficam restritos ao Admin. O departamento
-          pode aparecer no documento. Base, horas e acréscimos registram a
-          memória do cálculo; o total é calculado pelos itens e desconto.
-        </p>
-        <div className="form-grid">
-          {[
-            ["dataAssessment", "Avaliação interna do banco", "data_assessment"],
-            ["complexity", "Complexidade da análise", "complexity"],
-            ["department", "Departamento", "department"],
-          ].map(([name, label, key]) => (
-            <label key={name}>
-              {label}
-              <PresetField
-                name={name}
-                value={String(
-                  values[key] ??
-                    source?.intake?.[
-                      key === "data_assessment" ? "data_status" : key
-                    ] ??
-                    "",
-                )}
-                options={projectPresets[key] ?? []}
-              />
-            </label>
-          ))}
-          {[
-            ["estimatedHours", "Horas estimadas", "estimated_hours", hours],
-            ["baseValue", "Valor base (R$)", "base_value", base],
-            ["additions", "Acréscimos (R$)", "additions", additions],
-          ].map(([name, label, key, value]) => (
-            <label key={String(name)}>
-              {label}
-              <input
-                name={String(name)}
-                type="number"
-                min="0"
-                step="0.01"
-                value={
-                  values[String(key)] ?? Math.round(Number(value) * 100) / 100
-                }
-                onChange={(e) =>
-                  setValues((current) => ({
-                    ...current,
-                    [String(key)]: e.target.value,
-                  }))
-                }
-              />
-            </label>
-          ))}
-        </div>
-        <label>
-          Observações internas
-          <textarea
-            name="internalNotes"
-            defaultValue={String(values.internal_notes ?? "")}
-          />
-        </label>
-      </details>
-    </fieldset>
+      <p className="muted">
+        As respostas do cliente estão em Demanda e escopo. A avaliação técnica
+        abaixo é interna e não aparece no documento. Os valores das etapas ficam
+        apenas no cálculo administrativo.
+      </p>
+      <div className="form-grid">
+        {[
+          ["dataAssessment", "Avaliação técnica do banco", "data_assessment"],
+          ["complexity", "Complexidade da análise", "complexity"],
+        ].map(([name, label, key]) => (
+          <label key={name}>
+            {label}
+            <PresetField
+              name={name}
+              value={String(values[key] ?? "")}
+              options={projectPresets[key] ?? []}
+            />
+          </label>
+        ))}
+        {[
+          ["estimatedHours", "Horas estimadas", "estimated_hours", hours],
+          ["baseValue", "Valor base (R$)", "base_value", base],
+          ["additions", "Acréscimos (R$)", "additions", additions],
+        ].map(([name, label, key, value]) => (
+          <label key={String(name)}>
+            {label}
+            <input
+              name={String(name)}
+              type="number"
+              min="0"
+              step="0.01"
+              value={
+                values[String(key)] ?? Math.round(Number(value) * 100) / 100
+              }
+              onChange={(e) =>
+                setValues((v) => ({ ...v, [String(key)]: e.target.value }))
+              }
+            />
+          </label>
+        ))}
+      </div>
+      <label>
+        Observações internas
+        <textarea
+          name="internalNotes"
+          defaultValue={String(values.internal_notes ?? "")}
+        />
+      </label>
+    </details>
   );
 }

@@ -65,10 +65,7 @@ export function templateValues(s: DocumentSnapshot): Record<string, string> {
       `Proposta ${s.budget.number} · versão ${s.reference}. Validade: ${date(s.budget.validity) || "A combinar"}.`,
       ...s.items
         .slice(3)
-        .map(
-          (i, n) =>
-            `Serviço adicional ${n + 1}: ${i.description} (${i.quantity} × ${money(i.unit_price)})`,
-        ),
+        .map((i, n) => `Serviço adicional ${n + 1}: ${i.description}`),
     ]
       .filter(Boolean)
       .join("\n"),
@@ -83,9 +80,7 @@ export function templateValues(s: DocumentSnapshot): Record<string, string> {
     EMAIL_CLIENTE: s.client.email,
     WHATSAPP_CLIENTE: s.client.phone,
     DESCRICAO_DEMANDA: t.requestText ?? s.budget.description,
-    DESCRICAO_SERVICOS: s.items
-      .map((i) => `${i.description} (${i.quantity} × ${money(i.unit_price)})`)
-      .join("\n"),
+    DESCRICAO_SERVICOS: s.items.map((i) => i.description).join("\n"),
     VALOR_CONTRATADO: money(s.budget.total),
     DATA_INICIO:
       date(t.startDate ?? "") ||

@@ -10,7 +10,10 @@ function load(file, deps = {}) {
     "exports",
     "require",
     ts.transpileModule(readFileSync(file, "utf8"), {
-      compilerOptions: { module: ts.ModuleKind.CommonJS },
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2017,
+      },
     }).outputText,
   )(out, (k) => deps[k] ?? native(k));
   return out;
@@ -141,4 +144,78 @@ test("budget defaults prefer saved billing, preserve intentionally empty values 
   assert.equal(saved.legal_name, "Revisado");
   assert.equal(saved.institution, "");
   assert.equal(saved.email, "fixture@example.test");
+});
+
+test("reviewed request context uses the extended atomic save and preserves cleared fields", async () => {
+  const f = form();
+  f.set("requestDetails", JSON.stringify({ purpose: "Tese", department: "" }));
+  const result = await ops.saveBudget(
+    {
+      rpc: async (name, { payload }) => {
+        assert.equal(name, "save_client_budget_with_context");
+        assert.deepEqual(payload.requestDetails, {
+          purpose: "Tese",
+          department: "",
+        });
+        return { data: id, error: null };
+      },
+    },
+    f,
+  );
+  assert.equal(result.success, true);
+  const missing = await ops.saveBudget(
+    {
+      rpc: async () => ({ error: { code: "PGRST202", message: "Not found" } }),
+    },
+    f,
+  );
+  assert.equal(missing.success, false);
+  assert.match(missing.message, /ATUALIZAR-CONTEXTO-ORCAMENTO/);
+});
+test("request defaults and coefficient matching reuse known answers without inventing urgency fees", () => {
+  const { budgetRequestDefaults, requestEstimateFactors } = load(
+    "lib/commercial/budget-defaults.ts",
+    { "./billing": load("lib/commercial/billing.ts") },
+  );
+  const r = budgetRequestDefaults(
+    {
+      title: "Pesquisa",
+      description: "Demanda original",
+      desired_date: "2026-12-10",
+      intake: { purpose: "Tese", department: "Pós-graduação" },
+    },
+    { due_date: "2026-12-20" },
+    "Padrão",
+  );
+  assert.equal(r.title, "Pesquisa");
+  assert.equal(r.delivery, "2026-12-20");
+  assert.equal(r.details.department, "Pós-graduação");
+  const model = {
+    coefficients: [
+      { group: "Urgência", label: "Prazo curto", coefficient: 0.1 },
+      { group: "Responsabilidade", label: "Tese", coefficient: 0.35 },
+      { group: "Banco", label: "Banco limpo e organizado", coefficient: 0 },
+    ],
+  };
+  assert.deepEqual(
+    requestEstimateFactors(
+      {
+        urgency: "Prazo definido",
+        purpose: "Tese",
+        data_status: "Planilha organizada",
+      },
+      model,
+    ),
+    { Urgência: -1, Responsabilidade: 1, Banco: 2 },
+  );
+});
+test("reviewed intake replaces legacy auto-filled lines without duplicating or exposing stale answers", () => {
+  const { intakeDescription } = load("lib/commercial/intake.ts", {
+    "../budget-request": load("lib/budget-request.ts"),
+  });
+  const text = intakeDescription(
+    { purpose: "Tese", department: "" },
+    "Demanda original\nFinalidade do trabalho: TCC\nDepartamento / instituição: Antigo",
+  );
+  assert.equal(text, "Demanda original\nFinalidade do trabalho: Tese");
 });

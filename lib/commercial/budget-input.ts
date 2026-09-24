@@ -1,5 +1,6 @@
 import { z } from "zod";
 export const budgetInput = z.object({
+  requestDetails: z.record(z.string().max(500)).optional(),
   clientDetails: z.record(z.string().max(350)).optional(),
   publicationPartnership: z
     .enum(["true", "false"])

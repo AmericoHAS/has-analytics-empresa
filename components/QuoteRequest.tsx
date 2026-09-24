@@ -1,5 +1,6 @@
 "use client";
 import IntakeFields from "@/components/public/IntakeFields";
+import { budgetServices } from "@/lib/budget-request";
 import { intakeFields } from "@/lib/commercial/intake";
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
@@ -282,10 +283,9 @@ export default function QuoteRequest() {
         <label>
           Como podemos ajudar?
           <select name="service" required>
-            <option>Bioestatística e pesquisa</option>
-            <option>Análises reproduzíveis</option>
-            <option>Dados e soluções digitais</option>
-            <option>Orientação sobre meu projeto</option>
+            {budgetServices.map((service) => (
+              <option key={service}>{service}</option>
+            ))}
           </select>
         </label>
         <label>

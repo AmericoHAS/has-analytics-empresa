@@ -1,7 +1,11 @@
 "use client";
 import { billingFields } from "@/lib/commercial/billing";
-import { budgetClientDefaults } from "@/lib/commercial/budget-defaults";
-import { intakeFields } from "@/lib/commercial/intake";
+import {
+  budgetClientDefaults,
+  budgetRequestDefaults,
+  requestEstimateFactors,
+} from "@/lib/commercial/budget-defaults";
+import { proposalIntakeFields, intakeOptions } from "@/lib/commercial/intake";
 import BudgetPlanningFields from "./BudgetPlanningFields";
 import CommercialDocuments from "@/components/workspace/CommercialDocuments";
 import { useCallback, useEffect, useState } from "react";
@@ -21,6 +25,7 @@ import {
 import PaymentPreview from "@/components/workspace/PaymentPreview";
 type Item = { description: string; quantity: number; unitPrice: number };
 type Budget = {
+  request_details?: Record<string, string> | null;
   archived_at?: string | null;
   client_details?: Record<string, string> | null;
   publication_partnership?: boolean;
@@ -59,10 +64,15 @@ export default function ClientBudgetManager({
     description: string;
     desired_date: string | null;
     intake: Record<string, string>;
+    service_type?: string;
     name?: string;
     email?: string;
     phone?: string;
   };
+  const [requestDetails, setRequestDetails] = useState<Record<string, string>>(
+    {},
+  );
+  const [formVersion, setFormVersion] = useState(0);
   const [requestsReady, setRequestsReady] = useState(readOnly);
   const [history, setHistory] = useState(false);
   const [clientDetails, setClientDetails] = useState<Record<string, string>>(
@@ -106,7 +116,7 @@ export default function ClientBudgetManager({
       supabase
         .from("budget_requests")
         .select(
-          "id,project_id,title,description,desired_date,intake,name,email,phone",
+          "id,project_id,title,description,desired_date,intake,name,email,phone,service_type",
         )
         .eq("client_id", clientId)
         .order("created_at", { ascending: false })
@@ -185,23 +195,36 @@ export default function ClientBudgetManager({
       unitPrice: Number(i.unit_price),
     }));
   }
+  const applyProjectDefaults = useCallback(
+    (data: Record<string, string | number>) => {
+      if (data.estimated_hours) setHours(Number(data.estimated_hours));
+      setRequestDetails((current) => ({
+        ...current,
+        department: current.department || String(data.department ?? ""),
+        research_area:
+          current.research_area || String(data.research_area ?? ""),
+      }));
+      if (data.complexity)
+        setFactors((current) => ({
+          ...current,
+          Complexidade: model.coefficients.findIndex(
+            (c) => c.group === "Complexidade" && c.label === data.complexity,
+          ),
+        }));
+    },
+    [model],
+  );
   function applyRequest(r: Request | null) {
     setSource(r);
     setClientDetails(budgetClientDefaults(billing, profile, r));
-    setTitle(r?.title ?? model.title);
-    setDescription(
-      r
-        ? [
-            r.description,
-            ...intakeFields
-              .filter(([key]) => r.intake?.[key])
-              .map(([key, label]) => `${label}: ${r.intake[key]}`),
-          ].join("\n")
-        : "",
-    );
     const linked = projects.find((p) => p.id === r?.project_id);
-    if (!r?.description && linked?.description)
-      setDescription(linked.description);
+    const defaults = budgetRequestDefaults(r, linked, model.title);
+    setTitle(defaults.title);
+    setDescription(defaults.description);
+    setRequestDetails(defaults.details);
+    setFactors(requestEstimateFactors(defaults.details, model));
+    setHours(8);
+    setFormVersion((v) => v + 1);
     setProjectId(r?.project_id ?? "");
   }
   function start() {
@@ -225,7 +248,29 @@ export default function ClientBudgetManager({
       setClientDetails(
         b.client_details ?? budgetClientDefaults(billing, profile, null),
       );
-      setSource(null);
+      const { data: planning, error: planningError } = await supabase
+        .from("budget_planning")
+        .select("request_id,department")
+        .eq("budget_id", b.id)
+        .maybeSingle();
+      if (planningError) throw Error("Planejamento indisponível.");
+      const linkedRequest =
+        requests.find((r) => r.id === planning?.request_id) ??
+        (b.project_id
+          ? requests.find((r) => r.project_id === b.project_id)
+          : null) ??
+        null;
+      setSource(linkedRequest);
+      setRequestDetails(
+        b.request_details ?? {
+          ...(linkedRequest?.intake ?? {}),
+          ...(linkedRequest?.service_type
+            ? { service_type: linkedRequest.service_type }
+            : {}),
+          ...(planning?.department ? { department: planning.department } : {}),
+        },
+      );
+      setFormVersion((v) => v + 1);
       setTitle(b.title);
       setDescription(b.description);
       setProjectId(b.project_id ?? "");
@@ -243,6 +288,7 @@ export default function ClientBudgetManager({
     const f = new FormData(e.currentTarget);
     f.set("clientId", clientId);
     f.set("clientDetails", JSON.stringify(clientDetails));
+    f.set("requestDetails", JSON.stringify(requestDetails));
     f.set("budgetId", edit?.id ?? "");
     f.set("items", JSON.stringify(items));
     f.set("discountPercent", String(discount));
@@ -312,14 +358,17 @@ export default function ClientBudgetManager({
           onSubmit={save}
           onInvalid={(e) => {
             const field = e.target as HTMLInputElement;
-            const details = field.closest("details");
-            if (details) details.open = true;
+            let details = field.closest("details");
+            while (details) {
+              details.open = true;
+              details = details.parentElement?.closest("details") ?? null;
+            }
             setMessage(
               `Confira ${field.closest("label")?.textContent?.trim() || "os campos obrigatórios"}: ${field.validationMessage}`,
             );
           }}
           className="workspace-card stack"
-          key={edit?.id ?? "new"}
+          key={`${edit?.id ?? "new"}:${formVersion}`}
         >
           <div className="row">
             <h3>{edit ? "Editar orçamento" : "Nova proposta"}</h3>
@@ -387,59 +436,142 @@ export default function ClientBudgetManager({
               ))}
             </div>
           </details>
-          <div className="form-grid">
+          <details className="budget-section" open>
+            <summary>Demanda e escopo</summary>
+            <div className="form-grid">
+              <label>
+                Título
+                <input
+                  name="title"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </label>
+              <label>
+                Projeto
+                <select
+                  name="projectId"
+                  value={projectId}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+                    const nextRequest = requests.find(
+                      (r) => r.project_id === nextId,
+                    );
+                    if (
+                      !edit &&
+                      nextRequest &&
+                      nextRequest.id !== source?.id &&
+                      confirm(
+                        "Preencher esta proposta com a solicitação do projeto escolhido? Os campos da demanda serão substituídos.",
+                      )
+                    ) {
+                      applyRequest(nextRequest);
+                      return;
+                    }
+                    setProjectId(nextId);
+                    const p = projects.find((p) => p.id === nextId);
+                    if (!edit && p) {
+                      if (!title || title === model.title) setTitle(p.title);
+                      if (!description) setDescription(p.description ?? "");
+                    }
+                  }}
+                >
+                  <option value="">Geral do cliente</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Validade
+                <input
+                  type="date"
+                  name="validUntil"
+                  defaultValue={edit ? (edit.valid_until ?? "") : validity}
+                />
+              </label>
+              <label>
+                Desconto (%)
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  required
+                  value={discount}
+                  onChange={(e) => setDiscount(Number(e.target.value))}
+                />
+              </label>
+            </div>
             <label>
-              Título
-              <input
-                name="title"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+              Descrição da demanda
+              <textarea
+                name="description"
+                aria-label="Descrição da demanda"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
               />
             </label>
-            <label>
-              Projeto
-              <select
-                name="projectId"
-                value={projectId}
-                onChange={(e) => {
-                  setProjectId(e.target.value);
-                  const p = projects.find((p) => p.id === e.target.value);
-                  if (!edit && p) {
-                    if (!title || title === model.title) setTitle(p.title);
-                    if (!description) setDescription(p.description ?? "");
-                  }
-                }}
-              >
-                <option value="">Geral do cliente</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Validade
-              <input
-                type="date"
-                name="validUntil"
-                defaultValue={edit ? (edit.valid_until ?? "") : validity}
-              />
-            </label>
-            <label>
-              Desconto (%)
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                required
-                value={discount}
-                onChange={(e) => setDiscount(Number(e.target.value))}
-              />
-            </label>
-          </div>
+            <div className="form-grid">
+              {proposalIntakeFields.map(([key, label]) => (
+                <label key={key}>
+                  {label}
+                  {intakeOptions[key] ? (
+                    <select
+                      aria-label={label}
+                      value={requestDetails[key] ?? ""}
+                      onChange={(e) => {
+                        const next = {
+                          ...requestDetails,
+                          [key]: e.target.value,
+                        };
+                        setRequestDetails(next);
+                        const mapped = requestEstimateFactors(next, model);
+                        setFactors((current) => ({
+                          ...mapped,
+                          Complexidade: current.Complexidade ?? -1,
+                        }));
+                      }}
+                    >
+                      <option value="">A definir</option>
+                      {requestDetails[key] &&
+                        !intakeOptions[key].includes(requestDetails[key]) && (
+                          <option>{requestDetails[key]}</option>
+                        )}
+                      {intakeOptions[key].map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      maxLength={250}
+                      aria-label={label}
+                      value={requestDetails[key] ?? ""}
+                      onChange={(e) => {
+                        const next = {
+                          ...requestDetails,
+                          [key]: e.target.value,
+                        };
+                        setRequestDetails(next);
+                        const mapped = requestEstimateFactors(next, model);
+                        setFactors((current) => ({
+                          ...mapped,
+                          Complexidade: current.Complexidade ?? -1,
+                        }));
+                      }}
+                    />
+                  )}
+                </label>
+              ))}
+            </div>
+            <small>
+              Opções iguais às da solicitação do cliente. Você pode revisar os
+              dados nesta proposta; o pedido original é preservado.
+            </small>
+          </details>
           <label className="partnership-option">
             <input
               type="checkbox"
@@ -457,20 +589,14 @@ export default function ClientBudgetManager({
               acordadas; a parceria não garante autoria.
             </p>
           )}
-          <label>
-            Demanda e escopo
-            <textarea
-              name="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </label>
           {!edit && (
             <details>
               <summary>Estimar com os critérios da planilha</summary>
               <p>
                 Base + horas × valor-hora + base × soma dos coeficientes.
-                Aplicar substitui os valores dos três itens.
+                Aplicar substitui os valores dos três itens. As respostas
+                compatíveis do cliente são pré-selecionadas; confira os
+                critérios sem correspondência antes de aplicar.
               </p>
               <div className="form-grid">
                 <label>
@@ -490,6 +616,7 @@ export default function ClientBudgetManager({
                   <label key={g}>
                     {g}
                     <select
+                      aria-label={g}
                       value={factors[g] ?? -1}
                       onChange={(e) =>
                         setFactors({ ...factors, [g]: Number(e.target.value) })
@@ -541,108 +668,128 @@ export default function ClientBudgetManager({
               </button>
             </details>
           )}
-          {items.map((item, i) => (
-            <div className="service-row" key={i}>
-              <label>
-                Item {i + 1}
-                <textarea
-                  required
-                  value={item.description}
-                  onChange={(e) =>
-                    setItems(
-                      items.map((r, j) =>
-                        j === i ? { ...r, description: e.target.value } : r,
-                      ),
-                    )
-                  }
-                />
-              </label>
-              <label>
-                Quantidade
-                <input
-                  required
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={item.quantity}
-                  onChange={(e) =>
-                    setItems(
-                      items.map((r, j) =>
-                        j === i
-                          ? { ...r, quantity: Number(e.target.value) }
-                          : r,
-                      ),
-                    )
-                  }
-                />
-              </label>
-              <label>
-                Preço (R$)
-                <input
-                  required
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={item.unitPrice}
-                  onChange={(e) =>
-                    setItems(
-                      items.map((r, j) =>
-                        j === i
-                          ? { ...r, unitPrice: Number(e.target.value) }
-                          : r,
-                      ),
-                    )
-                  }
-                />
-              </label>
-              <strong>{money(item.quantity * item.unitPrice)}</strong>
+          <details className="budget-section">
+            <summary>Etapas e valores internos · {items.length} itens</summary>
+            <p className="muted">
+              Preços unitários são usados apenas no cálculo interno. Os
+              documentos apresentam os serviços e o valor global da proposta.
+            </p>
+            {items.map((item, i) => (
+              <details className="budget-item" key={i} open={!item.description}>
+                <summary>
+                  Etapa {i + 1} · {item.description.slice(0, 90) || "Novo item"}
+                </summary>
+                <div className="service-row">
+                  <label>
+                    Item {i + 1}
+                    <textarea
+                      required
+                      value={item.description}
+                      onChange={(e) =>
+                        setItems(
+                          items.map((r, j) =>
+                            j === i ? { ...r, description: e.target.value } : r,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    Quantidade
+                    <input
+                      required
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={item.quantity}
+                      onChange={(e) =>
+                        setItems(
+                          items.map((r, j) =>
+                            j === i
+                              ? { ...r, quantity: Number(e.target.value) }
+                              : r,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    Preço (R$)
+                    <input
+                      required
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) =>
+                        setItems(
+                          items.map((r, j) =>
+                            j === i
+                              ? { ...r, unitPrice: Number(e.target.value) }
+                              : r,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <strong>{money(item.quantity * item.unitPrice)}</strong>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setItems(items.filter((_, j) => i !== j))}
+                  >
+                    Remover
+                  </button>
+                </div>
+              </details>
+            ))}
+            <div className="row">
+              <select
+                aria-label="Adicionar serviço do catálogo"
+                value=""
+                onChange={(e) => {
+                  const s = model.services.find((s) => s.id === e.target.value);
+                  if (s) setItems([...items, { ...s }]);
+                }}
+              >
+                <option value="">Adicionar do catálogo…</option>
+                {model.services.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.description}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 className="btn"
-                onClick={() => setItems(items.filter((_, j) => i !== j))}
+                onClick={() =>
+                  setItems([
+                    ...items,
+                    { description: "", quantity: 1, unitPrice: 0 },
+                  ])
+                }
               >
-                Remover
+                Item livre
               </button>
             </div>
-          ))}
-          <div className="row">
-            <select
-              aria-label="Adicionar serviço do catálogo"
-              value=""
-              onChange={(e) => {
-                const s = model.services.find((s) => s.id === e.target.value);
-                if (s) setItems([...items, { ...s }]);
-              }}
-            >
-              <option value="">Adicionar do catálogo…</option>
-              {model.services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.description}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn"
-              onClick={() =>
-                setItems([
-                  ...items,
-                  { description: "", quantity: 1, unitPrice: 0 },
-                ])
-              }
-            >
-              Item livre
-            </button>
-          </div>
-          <label>
-            Observações e pagamento
-            <textarea name="notes" defaultValue={edit?.notes ?? model.notes} />
-          </label>
-          <PaymentPreview total={sum.total} />
+          </details>
+          <details className="budget-section">
+            <summary>Observações e pagamento</summary>
+            <label>
+              Observações e pagamento
+              <textarea
+                name="notes"
+                defaultValue={edit?.notes ?? model.notes}
+              />
+            </label>
+            <PaymentPreview total={sum.total} />
+          </details>
           <BudgetPlanningFields
             source={source}
+            context={requestDetails}
+            onDefaults={edit ? undefined : applyProjectDefaults}
             projectId={projectId}
-            key={edit?.id ?? `${source?.id ?? "planning"}:${projectId}`}
+            key={`${edit?.id ?? "new"}:${source?.id ?? "planning"}:${projectId}`}
             clientId={clientId}
             budgetId={edit?.id}
             payment={edit?.payment_terms ?? model.payment}

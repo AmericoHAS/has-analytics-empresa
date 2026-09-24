@@ -4,6 +4,7 @@ import {
   paymentDescription,
   type PaymentOption,
 } from "@/lib/commercial/payments";
+import { intakeDescription } from "@/lib/commercial/intake";
 import { PDFDocument } from "pdf-lib";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -251,7 +252,10 @@ export async function generateCommercialDocument(form: FormData) {
           installments: String(chosen?.option?.installments ?? 1),
           projectTitle: b.title,
           department: planning?.department || documentClient.institution || "",
-          requestText: b.description || request?.description || "",
+          requestText: intakeDescription(
+            b.request_details ?? request?.intake ?? {},
+            b.description || request?.description || "",
+          ),
           revisions: input.revisions,
           forumCity: input.forumCity,
           signatureCity: documentClient.city,

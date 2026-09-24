@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
 const require = createRequire(import.meta.url);
-function load(file) {
+function load(file, recoverPrint = false) {
   const exports = {};
   new Function(
     "exports",
@@ -23,8 +23,30 @@ function load(file) {
     exports,
     (id) =>
       id === "./template-engine"
-        ? load("lib/commercial/template-engine.ts")
-        : require(id),
+        ? load("lib/commercial/template-engine.ts", recoverPrint)
+        : id === "./pdf-print"
+          ? recoverPrint
+            ? {
+                printTemplatePdf: (page, reference) => {
+                  let attempt = 0;
+                  return load("lib/commercial/pdf-print.ts").printTemplatePdf(
+                    {
+                      pdf: (options) => {
+                        if (++attempt === 1)
+                          throw Error("Page.printToPDF: Printing failed");
+                        return page.pdf(options);
+                      },
+                    },
+                    reference,
+                  );
+                },
+                isChromiumPrintFailure: load("lib/commercial/pdf-print.ts")
+                  .isChromiumPrintFailure,
+              }
+            : load("lib/commercial/pdf-print.ts")
+          : id === "../budget-request"
+            ? load("lib/budget-request.ts")
+            : require(id),
     Buffer,
   );
   return exports;
@@ -124,6 +146,7 @@ function actions(role = "client", signed = true) {
     "pdf-lib": require("pdf-lib"),
     "@/lib/commercial/render": { renderCommercial },
     "@/lib/commercial/billing": { billingSchema },
+    "@/lib/commercial/intake": load("lib/commercial/intake.ts"),
     "@/lib/supabase/server": {
       createClient: async () => ({
         auth: {
@@ -241,5 +264,68 @@ test("all three documents use original template assets and fill every placeholde
       fs.writeFileSync(`../commercial-qa/${kind}.pdf`, files.pdf);
       fs.writeFileSync(`../commercial-qa/${kind}.docx`, files.word);
     }
+  }
+});
+
+test("real Chromium recovery renders all native templates after an injected print failure", async () => {
+  const recoveredRender = load(
+    "lib/commercial/render.ts",
+    true,
+  ).renderCommercial;
+  for (const kind of ["orcamento", "contrato", "recibo"]) {
+    const files = await recoveredRender({
+      ...sample,
+      kind,
+      template: {
+        amountWords: "setecentos e vinte e nove reais",
+        revisions: "1",
+        forumCity: "Maringá — PR",
+      },
+    });
+    assert.ok((await PDFDocument.load(files.pdf)).getPageCount() >= 1);
+    assert.match(
+      await (
+        await JSZip.loadAsync(files.word)
+      )
+        .file("word/document.xml")
+        .async("string"),
+      /Cliente de Teste/,
+    );
+    if (process.env.QA_ARTIFACTS) {
+      fs.mkdirSync("../pdf-recovery-qa", { recursive: true });
+      fs.writeFileSync(`../pdf-recovery-qa/${kind}.pdf`, files.pdf);
+      fs.writeFileSync(`../pdf-recovery-qa/${kind}.docx`, files.word);
+    }
+  }
+});
+
+test("stage and additional-service unit prices never appear in native proposal or contract text", async () => {
+  const { templateValues } = load("lib/commercial/render.ts");
+  const data = {
+    ...sample,
+    items: [
+      ...sample.items,
+      {
+        description: "Validação complementar",
+        quantity: 7,
+        unit_price: 123.45,
+      },
+    ],
+  };
+  const values = templateValues(data);
+  assert.equal(
+    values.DESCRICAO_SERVICOS,
+    data.items.map((i) => i.description).join("\n"),
+  );
+  assert.match(values.OBSERVACOES, /Validação complementar/);
+  assert.doesNotMatch(values.OBSERVACOES, /123,45|7 ×/);
+  assert.match(values.VALOR_FINAL, /729,00/);
+  const { fillHasTemplate } = load("lib/commercial/template-engine.ts");
+  for (const kind of ["orcamento", "contrato"]) {
+    const { word } = await fillHasTemplate(kind, values);
+    const zip = await JSZip.loadAsync(word);
+    const xml = await zip.file("word/document.xml").async("string");
+    assert.doesNotMatch(xml, /123,45|7 ×/);
+    assert.match(xml, /729,00/);
   }
 });

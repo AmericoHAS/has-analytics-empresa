@@ -1030,3 +1030,9 @@ a[href*="wa.me"] svg {
 .project-view-filter select { min-height:0; height:auto; width:auto; min-width:0; margin:0; padding:.35rem 1.7rem .35rem .6rem; font-size:inherit; font-weight:400; border-radius:.5rem; }
 .first-access-page { min-height:100dvh; padding:clamp(1rem,4vw,3rem); background:#eef5fb; }
 .first-access-content { max-width:850px; margin:0 auto; display:grid; gap:1rem; }
+
+.budget-section, .budget-item { border:1px solid #dce7f0; border-radius:12px; padding:1rem; background:#f8fbfe; }
+.budget-section > summary, .budget-item > summary { cursor:pointer; color:#103b59; font-weight:600; }
+.budget-section[open] > summary, .budget-item[open] > summary { margin-bottom:1rem; }
+.budget-item { margin-block:.75rem; background:white; }
+.budget-section .form-grid { margin-block:1rem; }

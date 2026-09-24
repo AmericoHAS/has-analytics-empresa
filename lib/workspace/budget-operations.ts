@@ -14,17 +14,28 @@ export async function saveBudget(
       ...(form.has("clientDetails")
         ? { clientDetails: JSON.parse(String(form.get("clientDetails"))) }
         : {}),
+      ...(form.has("requestDetails")
+        ? { requestDetails: JSON.parse(String(form.get("requestDetails"))) }
+        : {}),
       items: JSON.parse(String(form.get("items") || "[]")),
     });
     const id = String(form.get("budgetId") || "");
     if (id) z.string().uuid().parse(id);
-    const { data, error } = await db.rpc("save_client_budget_v3", {
-      payload: { ...payload, id: id || null },
-    });
+    const { data, error } = await db.rpc(
+      payload.requestDetails
+        ? "save_client_budget_with_context"
+        : "save_client_budget_v3",
+      {
+        payload: { ...payload, id: id || null },
+      },
+    );
     if (error)
       return {
         success: false,
-        message: actionError(error, "salvar o orçamento"),
+        message:
+          payload.requestDetails && /PGRST202|42883/.test(error.code ?? "")
+            ? "Aplique ATUALIZAR-CONTEXTO-ORCAMENTO.sql no Supabase para salvar os campos da solicitação nesta proposta."
+            : actionError(error, "salvar o orçamento"),
       };
     if (typeof data !== "string")
       return {
