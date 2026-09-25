@@ -18,10 +18,11 @@ export function isClosedBrowser(error: unknown): boolean {
 }
 
 export function documentBrowserArgs(defaults: string[]): string[] {
-  // These documents contain text and static images, not WebGL. Avoid the
-  // SwiftShader/GPU path implicated by the production SharedImageManager log.
-  return [...defaults.filter((arg) => !/^(--use-gl=|--use-angle=|--enable-unsafe-swiftshader$|--in-process-gpu$|--ignore-gpu-blocklist$|--disk-cache-size=)/.test(arg)),
-    "--disable-gpu", "--disable-webgl", "--disk-cache-size=1048576"];
+  // Preserve the package's serverless process model, including in-process-gpu.
+  // Disabling WebGL is handled by chromium.setGraphicsMode, not by removing
+  // GPU process flags: headless Chromium still uses its graphics compositor.
+  return [...defaults.filter(arg => !arg.startsWith("--disk-cache-size=")),
+    "--disk-cache-size=1048576"];
 }
 
 export async function temporarySpaceMb(): Promise<number | null> {

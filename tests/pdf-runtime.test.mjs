@@ -39,9 +39,13 @@ test('persistent closed browser stops after one restart; other failures are not 
     assert.equal(calls,expected);
   }
 });
-test('serverless arguments retain required flags without GPU acceleration or 32 MB cache',()=>{
-  const args=documentBrowserArgs(['--no-sandbox','--single-process','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--in-process-gpu','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--disk-cache-size=33554432']);
-  assert.deepEqual(args,['--no-sandbox','--single-process','--disable-dev-shm-usage','--disable-gpu','--disable-webgl','--disk-cache-size=1048576']);
+test('serverless arguments preserve the vendor process model and bound disk cache',()=>{
+  const defaults=['--no-sandbox','--single-process','--in-process-gpu','--ignore-gpu-blocklist','--disable-webgl','--disk-cache-size=33554432'];
+  const args=documentBrowserArgs(defaults);
+  for(const flag of defaults.filter(flag=>!flag.startsWith('--disk-cache-size='))) assert.ok(args.includes(flag));
+  assert.equal(args.filter(flag=>flag.startsWith('--disk-cache-size=')).length,1);
+  assert.ok(args.includes('--disk-cache-size=1048576'));
+  assert.ok(!args.includes('--disable-gpu'));
 });
 test('temporary space diagnostics return no filenames or document content',async()=>{
   const space=await temporarySpaceMb();

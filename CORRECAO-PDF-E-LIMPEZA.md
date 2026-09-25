@@ -26,3 +26,9 @@ Depois do deploy, fechar a aba antiga e abrir novamente o site antes de testar. 
 Os testes executaram em Windows/Edge 153. A validação do Chromium Linux 153 na Vercel permanece necessária: gerar orçamento, contrato e recibo em sequência, incluindo o cliente que falhou. Não se afirma que o crash em produção foi reproduzido localmente.
 
 Fontes técnicas: https://github.com/Sparticuz/chromium/issues/298 e https://nextjs.org/docs/messages/failed-to-find-server-action
+
+## Atualização: falha a03221db na inicialização
+A alteração anterior de contexto não resolveu a falha de produção. O novo log mostra SIGTRAP durante launch com 501 MB livres, antes de qualquer renderização do documento.
+Restaurados os argumentos gráficos/processuais fornecidos pelo pacote Sparticuz, incluindo --in-process-gpu. A configuração anterior removia esse argumento e acrescentava --disable-gpu; essa personalização foi retirada. WebGL continua desativado pela opção oficial setGraphicsMode=false; permanece o limite de cache de 1 MB.
+Adicionado HAS_PDF_LAUNCH_FAILED para preservar stderr nativo da inicialização (antes de enviar conteúdo de clientes ao browser), limitado a 10 mil caracteres. O log anterior reduzia a causa fatal apenas a trap, impedindo diagnóstico preciso.
+18 testes de runtime/documentos passaram localmente. A causa exata do SIGTRAP não está provada sem a mensagem fatal nativa; não confundir validação Windows com execução Linux na Vercel. Modelos e arquitetura não foram substituídos.

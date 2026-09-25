@@ -145,6 +145,18 @@ async function renderHasTemplatePdf(
     ignoreDefaultArgs: !local && resources.useSharedMemory ? ["--disable-dev-shm-usage"] : undefined,
     args: local ? ["--no-sandbox"] : documentBrowserArgs(chromium.args),
     headless: true,
+  }).catch((error: unknown) => {
+    // No customer content has entered the browser at launch time.
+    const message = error instanceof Error ? error.message : "Unknown launch error";
+    const nativeLines = message.split(/\r?\n/).filter(line =>
+      /\[err\]|process did exit|signal=|error while loading shared libraries/i.test(line),
+    );
+    console.error("[HAS_PDF_LAUNCH_FAILED]", {
+      reference: diagnostic.reference,
+      signal: browserFailureSignal(error),
+      details: nativeLines.join("\n").slice(-10000),
+    });
+    throw error;
   });
   let page: Page | undefined;
   try {
