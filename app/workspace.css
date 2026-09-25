@@ -666,3 +666,11 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Past calendar cells are unavailable, not an operation in progress. */
+.dashboard .has-calendar button[data-unavailable="true"] {
+  cursor: not-allowed;
+  opacity: .4;
+  background-color: #e8edf2;
+  box-shadow: none;
+}

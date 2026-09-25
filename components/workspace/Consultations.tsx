@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState, useRef } from "react";
+import { isPastStart } from "@/lib/workspace/calendar";
 import ConsultationCalendar from "./ConsultationCalendar";
 import AvailabilityDialog from "./AvailabilityDialog";
 import { actionError } from "@/lib/workspace/action-errors";
@@ -231,9 +232,9 @@ export default function Consultations({
           ) : (
             <button
               className="btn primary"
-              disabled={busy || !project}
+              disabled={busy || !project || isPastStart(selected.starts_at)}
               onClick={() =>
-                void run(() =>
+                !isPastStart(selected.starts_at) && void run(() =>
                   supabase.rpc("book_consultation", {
                     p_slot: selected.id,
                     p_project: project,

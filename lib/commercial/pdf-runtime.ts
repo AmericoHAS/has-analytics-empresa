@@ -1,6 +1,7 @@
 import { access, statfs } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { constants } from "node:fs";
+import { join } from "node:path";
 
 // One Chromium per Node worker: concurrent requests otherwise share the same
 // small serverless /tmp volume and compete for renderer memory.
@@ -74,4 +75,13 @@ export function browserFailureSignal(error: unknown) {
   if (/SIGSEGV/i.test(message)) return "segmentation_fault";
   if (/SIGTRAP/i.test(message)) return "trap";
   return "unknown";
+}
+
+// The large executable lives in the read-only deployment bundle, not /tmp.
+// Missing packaging must fail explicitly rather than silently consume /tmp.
+export async function preparedChromiumPath(root = process.cwd()) {
+  const executable = join(root, ".has-pdf-runtime", "chromium");
+  try { await access(executable, constants.R_OK | constants.X_OK); }
+  catch { throw Error("Chromium não preparado no build. Configure o Build Command como npm run build e publique novamente."); }
+  return executable;
 }

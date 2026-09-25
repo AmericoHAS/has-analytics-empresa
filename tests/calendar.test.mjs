@@ -39,3 +39,9 @@ test("meeting end updates with duration and consecutive slots across day and yea
   assert.equal(lib.meetingEnd("2026-09-25T09:00", 120, 13), "");
   assert.equal(lib.nextMeetingStart(Date.parse("2026-09-25T12:08:00Z")), "2026-09-25T09:30");
 });
+test('past slots compare Brasilia date and time, including the exact boundary', () => {
+  const now = Date.parse('2026-09-25T14:00:00-03:00');
+  for (const start of ['2026-09-24T15:00', '2026-09-25T10:00', '2026-09-25T13:30', '2026-09-25T14:00', 'invalid']) assert.equal(lib.isPastStart(start, now), true);
+  for (const start of ['2026-09-25T15:00', '2026-09-26T10:00', '2026-09-25T18:00:00Z']) assert.equal(lib.isPastStart(start, now), false);
+  assert.equal(lib.isPastStart('2026-09-25T16:30:00Z', now), true);
+});

@@ -58,3 +58,8 @@ export function nextMeetingStart(now = Date.now()) {
   const next = Math.ceil((now + 60000) / 1800000) * 1800000;
   return new Date(next - 3 * 3600000).toISOString().slice(0, 16);
 }
+
+export function isPastStart(value: string, now = Date.now()) {
+  const instant = Date.parse(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) ? value + "-03:00" : value);
+  return !Number.isFinite(instant) || instant <= now;
+}

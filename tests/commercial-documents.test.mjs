@@ -151,7 +151,7 @@ test("native templates preserve long conditions without unresolved tokens", asyn
   );
 });
 
-function actions(role = "client", signed = true) {
+function actions(role = "client", signed = true, generation = false) {
   let storageCalls = 0;
   const imports = {
     zod: require("zod"),
@@ -196,7 +196,7 @@ function actions(role = "client", signed = true) {
     "exports",
     "require",
     ts.transpileModule(
-      fs.readFileSync("app/admin/commercial-actions.ts", "utf8"),
+      fs.readFileSync(generation ? "lib/commercial/generate.ts" : "app/admin/commercial-actions.ts", "utf8"),
       {
         compilerOptions: {
           module: ts.ModuleKind.CommonJS,
@@ -222,7 +222,7 @@ test("server denies client Word access before touching storage", async () => {
 });
 test("server prevents non-admin document generation and unauthenticated downloads", async () => {
   const a = actions();
-  const result = await a.exports.generateCommercialDocument(new FormData());
+  const result = await actions("client", true, true).exports.generateCommercialDocument(new FormData());
   assert.equal(result.success, false);
   assert.match(result.message, /restrito/);
   assert.equal(a.calls(), 0);
@@ -351,4 +351,33 @@ test("a real closed browser is discarded and the proposal is rendered in a new b
   const files = await render({ ...sample, kind: "orcamento" });
   assert.equal(crashInjected, true);
   assert.ok((await PDFDocument.load(files.pdf)).getPageCount() >= 1);
+});
+
+
+test("six consecutive native proposals release browser profiles after every generation", async () => {
+  const { readdir, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join, dirname, resolve, basename } = await import("node:path");
+  const parent=tmpdir();
+  const own=await mkdtemp(join(parent,"has-pdf-sequence-"));
+  const previous=Object.fromEntries(["TMPDIR","TEMP","TMP"].map(key=>[key,process.env[key]]));
+  try {
+    for(const key of Object.keys(previous)) process.env[key]=own;
+    for (let i=0;i<6;i++) {
+      const result = await renderCommercial({...sample, kind: "orcamento", reference: `SEQUENTIAL-${i}`, budget: {...sample.budget, total: 810 + i * 20}});
+      assert.ok((await PDFDocument.load(result.pdf)).getPageCount() > 0);
+      assert.ok(result.word.length > 0);
+      const remaining = (await readdir(own)).filter(name => /^playwright_(chromium|edge).*profile-|^playwright-artifacts-/.test(name));
+      assert.deepEqual(remaining, [], `Browser temporaries retained after PDF ${i+1}`);
+    }
+  } finally {
+    for(const [key,value] of Object.entries(previous)) { if(value===undefined) delete process.env[key]; else process.env[key]=value; }
+    assert.equal(dirname(resolve(own)),resolve(parent));assert.ok(basename(own).startsWith("has-pdf-sequence-"));
+    await rm(own,{recursive:true,force:true,maxRetries:3,retryDelay:100}).catch(error => {
+      // Windows graphics drivers may retain their Intel cache after Edge exits.
+      // Browser profiles/artifacts were checked separately after every render.
+      if (process.platform !== "win32" || error.code !== "EPERM" || !String(error.path).startsWith(join(own,"Intel"))) throw error;
+      console.info("Windows driver cache retained; all six browser profile cleanup checks passed.");
+    });
+  }
 });

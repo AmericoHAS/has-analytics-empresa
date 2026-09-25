@@ -12,3 +12,6 @@ node_modules/
 # Referência local da HAS Financial, não integra o aplicativo Analytics.
 /controle_financeiro-has.analytics-main (1)/
 /controle_financeiro-has.analytics-main (1).zip
+
+# Chromium Linux preparado automaticamente no build; não versionar.
+/.has-pdf-runtime/

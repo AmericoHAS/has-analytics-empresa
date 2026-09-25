@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Plus, Video, MapPin } from "lucide-react";
 import {
   addDays,
+  isPastStart,
   brazilDay,
   weekStart,
   nextMeetingStart,
@@ -31,6 +32,8 @@ export default function ConsultationCalendar({
 }) {
   const [day, setDay] = useState(() => initialDay ?? brazilDay()),
     [view, setView] = useState("week");
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(timer); }, []);
   const first = view === "week" ? weekStart(day) : day,
     days = Array.from({ length: view === "week" ? 7 : 1 }, (_, i) =>
       addDays(first, i),
@@ -130,6 +133,8 @@ export default function ConsultationCalendar({
                   ? "calendar-day-heading today"
                   : "calendar-day-heading"
               }
+              disabled={d < brazilDay(new Date(now))}
+              data-unavailable={d < brazilDay(new Date(now))}
               onClick={() => {
                 setDay(d);
                 setView("day");
@@ -165,10 +170,11 @@ export default function ConsultationCalendar({
                   <button
                     key={i}
                     className="calendar-cell"
-                    disabled={busy || Date.parse(`${d}T${String(startHour + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}-03:00`) <= Date.now()}
+                    data-unavailable={isPastStart(`${d}T${String(startHour + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`, now)}
+                    disabled={busy || isPastStart(`${d}T${String(startHour + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`, now)}
                     aria-label={`Disponibilizar ${d} às ${String(startHour + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`}
                     onClick={() =>
-                      onOpen(
+                      !busy && !isPastStart(`${d}T${String(startHour + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`) && onOpen(
                         `${d}T${String(startHour + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`,
                       )
                     }
@@ -186,7 +192,8 @@ export default function ConsultationCalendar({
                           ? "calendar-event reserved"
                           : "calendar-event"
                     }
-                    disabled={busy}
+                    data-unavailable={isPastStart(s.starts_at, now) || (!admin && s.busy)}
+                    disabled={busy || isPastStart(s.starts_at, now) || (!admin && s.busy)}
                     style={{
                       top: (hour(s.starts_at) - startHour) * 60,
                       height: Math.max(
@@ -196,7 +203,7 @@ export default function ConsultationCalendar({
                           2,
                       ),
                     }}
-                    onClick={() => onSelect(s)}
+                    onClick={() => { if (!busy && !isPastStart(s.starts_at) && (admin || !s.busy)) onSelect(s); }}
                     aria-label={`${s.busy ? "Reservado" : "Disponível"}, ${d}, ${clock(s.starts_at)} a ${clock(s.ends_at)}`}
                   >
                     <b>

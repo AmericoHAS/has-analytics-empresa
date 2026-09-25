@@ -1,8 +1,8 @@
 "use client";
+import { generateCommercialDocument } from "@/lib/commercial/generate-client";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  generateCommercialDocument,
   commercialDownload,
   publishCommercial,
 } from "@/app/admin/commercial-actions";

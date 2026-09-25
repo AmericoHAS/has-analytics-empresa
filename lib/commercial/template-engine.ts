@@ -1,13 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { printTemplatePdf, isChromiumPrintFailure } from "./pdf-print";
-import { withPdfCapacity, recoverClosedBrowser, isClosedBrowser, documentBrowserArgs, temporarySpaceMb, pdfResources, browserFailureSignal } from "./pdf-runtime";
+import { withPdfCapacity, recoverClosedBrowser, isClosedBrowser, documentBrowserArgs, temporarySpaceMb, pdfResources, browserFailureSignal, preparedChromiumPath } from "./pdf-runtime";
 import { randomUUID, createHash } from "node:crypto";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import JSZip from "jszip";
-import { chromium as browserEngine } from "playwright-core";
-import chromium from "@sparticuz/chromium";
+import { chromium as browserEngine, type Page, type BrowserContext } from "playwright-core";
+import chromium, { inflate, setupLambdaEnvironment } from "@sparticuz/chromium";
+import { tmpdir } from "node:os";
 export type TemplateKind = "orcamento" | "contrato" | "recibo";
 const root = () => join(process.cwd(), "templates", "has");
 const xmlEscape = (s: string) =>
@@ -93,6 +94,7 @@ async function renderHasTemplatePdf(
   kind: TemplateKind,
   diagnostic: { reference: string; stage: string; browser: string; temporaryFreeMbBeforePrint: number | null; sharedFreeMb: number | null; memoryStorage: string; lightweightPrint: boolean },
 ) {
+  diagnostic.temporaryFreeMbBeforePrint = null;
   const scripts = await Promise.all([
     readFile(
       join(process.cwd(), "node_modules/jszip/dist/jszip.min.js"),
@@ -121,7 +123,17 @@ async function renderHasTemplatePdf(
       : undefined);
   diagnostic.stage = "launch";
   if (!local) chromium.setGraphicsMode = false;
-  const executablePath = local ?? (await chromium.executablePath());
+  let executablePath = local;
+  if (!executablePath) {
+    diagnostic.stage = "prepare_runtime";
+    executablePath = await preparedChromiumPath();
+    // Only small support assets are extracted. Never invoke executablePath(),
+    // which would duplicate the entire executable in the temporary volume.
+    const bin = join(process.cwd(), "node_modules", "@sparticuz", "chromium", "bin");
+    await Promise.all(["fonts.tar.br", "swiftshader.tar.br", "al2023.tar.br"].map(file => inflate(join(bin, file))));
+    setupLambdaEnvironment(join(tmpdir(), "al2023", "lib"));
+  }
+  diagnostic.stage = "launch";
   const resources = await pdfResources();
   diagnostic.sharedFreeMb = resources.sharedFreeMb;
   diagnostic.memoryStorage = !local && resources.useSharedMemory ? "shared_memory" : "temporary";
@@ -132,10 +144,13 @@ async function renderHasTemplatePdf(
     args: local ? ["--no-sandbox"] : documentBrowserArgs(chromium.args),
     headless: true,
   });
+  let page: Page | undefined;
+  let context: BrowserContext | undefined;
   try {
     diagnostic.browser = browser.version();
     diagnostic.stage = "render_docx";
-    const page = await browser.newPage();
+    context = await browser.newContext();
+    page = await context.newPage();
     await page.route("**/*", (route) =>
       /^(data:|blob:|about:)/.test(route.request().url())
         ? route.continue()
@@ -220,6 +235,8 @@ async function renderHasTemplatePdf(
     if (diagnostic.lightweightPrint) console.info("[HAS_PDF_LOW_RESOURCE_PRINT]", { ...diagnostic, kind });
     return await printTemplatePdf(page, diagnostic.reference, !diagnostic.lightweightPrint);
   } finally {
+    await page?.close().catch(() => undefined);
+    await context?.close().catch(() => undefined);
     await browser.close().catch(() => {
       console.warn("[HAS_PDF_CLOSE_FAILED]", {
         reference: diagnostic.reference,

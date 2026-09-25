@@ -1,4 +1,5 @@
 "use client";
+import { generateCommercialDocument } from "@/lib/commercial/generate-client";
 import { paymentAction } from "@/app/admin/payment-actions";
 import { money } from "@/lib/commercial/model";
 import { type PaymentQuote } from "@/lib/commercial/payments";
@@ -6,7 +7,6 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   registerProviderSignature,
-  generateCommercialDocument,
   commercialDownload,
   publishCommercial,
   discardContractDraft,
