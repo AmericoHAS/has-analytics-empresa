@@ -31,9 +31,11 @@ const labels: Record<string, string> = {
 };
 export default function Payments({
   clientId,
+  projectId,
   admin = false,
 }: {
   clientId: string;
+  projectId?: string | null;
   admin?: boolean;
 }) {
   const [rows, setRows] = useState<Payment[]>([]),
@@ -41,6 +43,14 @@ export default function Payments({
     [busy, setBusy] = useState(false),
     [defaults, setDefaults] = useState("");
   const load = useCallback(async () => {
+    let ids: string[] | undefined;
+    if (projectId !== undefined) {
+      let query = supabase.from("client_budgets").select("id").eq("client_id", clientId);
+      query = projectId === null ? query.is("project_id", null) : query.eq("project_id", projectId);
+      const result = await query;
+      if (result.error) { setMessage("Não foi possível carregar os pagamentos deste projeto."); return; }
+      ids = (result.data ?? []).map(b => b.id);
+    }
     const { data, error } = await supabase
       .from("budget_payments")
       .select("*")
@@ -50,8 +60,8 @@ export default function Payments({
       setMessage(
         "Atualize o banco com ATUALIZAR-FLUXO-PAGAMENTO.sql para habilitar pagamentos.",
       );
-    else setRows(data ?? []);
-  }, [clientId]);
+    else setRows((data ?? []).filter(p => ids === undefined || ids.includes(p.budget_id)));
+  }, [clientId, projectId]);
   useEffect(() => {
     const t = setTimeout(() => void load(), 0);
     const timer = setInterval(() => void load(), 15000);

@@ -49,11 +49,13 @@ const previewType = (doc: Doc) =>
   ];
 export default function Documents({
   clientId,
+  projectId,
   projects,
   admin = false,
   revisionId,
 }: {
   clientId: string;
+  projectId?: string | null;
   projects: { id: string; title: string }[];
   admin?: boolean;
   revisionId?: string;
@@ -64,7 +66,7 @@ export default function Documents({
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [filter, setFilter] = useState(""),
-    [project, setProject] = useState(""),
+    [project, setProject] = useState(projectId ?? ""),
     [search, setSearch] = useState(""),
     [show, setShow] = useState(false);
   const load = useCallback(async () => {
@@ -75,6 +77,7 @@ export default function Documents({
       )
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
+    if (projectId !== undefined) query = projectId === null ? query.is("project_id", null) : query.eq("project_id", projectId);
     if (revisionId) query = query.eq("revision_id", revisionId);
     const { data, error } = await query;
     if (error)
@@ -83,7 +86,7 @@ export default function Documents({
       );
     else setDocs(data ?? []);
     setLoading(false);
-  }, [clientId, revisionId]);
+  }, [clientId, revisionId, projectId]);
   useEffect(() => {
     void load();
     const timer = setInterval(() => void load(), 60000);
@@ -124,7 +127,7 @@ export default function Documents({
       const { error: insert } = await supabase.from("client_documents").insert({
         client_id: clientId,
         revision_id: revisionId ?? null,
-        project_id: f.get("project") || null,
+        project_id: projectId !== undefined ? projectId : f.get("project") || null,
         title: String(f.get("title")).trim(),
         kind: admin ? f.get("kind") : "arquivo",
         status: "disponivel",
@@ -312,8 +315,9 @@ export default function Documents({
               Projeto
               <select
                 name="project"
+                disabled={projectId !== undefined}
                 defaultValue={
-                  revisionId || projects.length === 1 ? projects[0]?.id : ""
+                  projectId !== undefined ? projectId ?? "" : revisionId || projects.length === 1 ? projects[0]?.id : ""
                 }
               >
                 <option value="">Geral do cliente</option>

@@ -7,14 +7,12 @@ import {
   Bell,
   UserRound,
 } from "lucide-react";
-import WorkflowOverview from "./WorkflowOverview";
 import Payments from "./Payments";
 import ClientProfile from "./ClientProfile";
 import CommercialDocuments from "./CommercialDocuments";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { projectColumns, type AnalysisProject } from "@/lib/workspace/types";
-import { deadline } from "@/lib/workspace/deadlines";
 import Projects from "./Projects";
 import Documents from "./Documents";
 import Notifications from "./Notifications";
@@ -32,6 +30,9 @@ export default function ClientWorkspace({
     [tab, setTab] = useState(initialTab),
     [message, setMessage] = useState(""),
     [loading, setLoading] = useState(true);
+  const [selectedProject, setSelectedProject] = useState<string | null | undefined>(undefined);
+  const selected = projects.find(p => p.id === selectedProject);
+  const scopedProjects = selected ? [selected] : selectedProject === null ? projects : [];
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("client_projects")
@@ -75,55 +76,7 @@ export default function ClientWorkspace({
       {admin && tab === "cadastro" && (
         <ClientProfile clientId={clientId} admin expanded />
       )}
-      {admin && (
-        <WorkflowOverview
-          key={tab}
-          clientId={clientId}
-          admin={admin}
-          onNavigate={(t) => setTab(t === "pagamentos" ? "contratos" : t)}
-        />
-      )}
-      {admin && (
-        <details className="workspace-statistics">
-          <summary>Resumo de análises e prazos</summary>
-          <div className="summary workspace-summary">
-            <article>
-              <small>ANÁLISES EM CURSO</small>
-              <strong>
-                {
-                  projects.filter(
-                    (p) =>
-                      !p.archived_at &&
-                      !["concluido", "cancelado"].includes(p.status),
-                  ).length
-                }
-              </strong>
-              <span>Projetos em acompanhamento</span>
-            </article>
-            <article>
-              <small>ENTREGAS CONCLUÍDAS</small>
-              <strong>
-                {projects.filter((p) => p.status === "concluido").length}
-              </strong>
-              <span>Conhecimento pronto para avançar</span>
-            </article>
-            <article>
-              <small>ATENÇÃO AOS PRAZOS</small>
-              <strong>
-                {
-                  projects.filter((p) =>
-                    [
-                      deadline(p.due_date, p.start_date, p.status),
-                      deadline(p.client_due_date, p.start_date, p.status),
-                    ].some((d) => ["danger", "warning"].includes(d.tone)),
-                  ).length
-                }
-              </strong>
-              <span>Próximos três dias ou em atraso</span>
-            </article>
-          </div>
-        </details>
-      )}
+      {selectedProject !== undefined && <div className="workspace-card row"><div><small>Projeto selecionado</small><h2>{selected?.title ?? "Registros sem projeto"}</h2></div><button className="btn" onClick={() => { setSelectedProject(undefined); setTab("projetos"); }}>Voltar aos projetos</button></div>}
       <nav className="workspace-tabs" aria-label="Seções do cliente">
         {[
           ["projetos", "Projetos e prazos"],
@@ -161,37 +114,43 @@ export default function ClientWorkspace({
         <p>Carregando seu espaço…</p>
       ) : (
         <>
-          {tab === "projetos" && (
+          {selectedProject === undefined && !["avisos", "cadastro"].includes(tab) && <><p>Abra um projeto para acompanhar suas etapas, orçamentos, contratos, pagamentos e arquivos.</p><Projects clientId={clientId} projects={projects} admin={admin} onChange={load} onOpen={setSelectedProject} /><button className="btn" onClick={() => { setSelectedProject(null); setTab("orcamentos"); }}>Registros antigos sem projeto</button></>}
+          <div key={selectedProject ?? "unlinked"}>
+          {selectedProject != null && tab === "projetos" && (
             <Projects
               clientId={clientId}
-              projects={projects}
+              projects={scopedProjects}
+              focused
               admin={admin}
               onChange={load}
             />
           )}{" "}
-          {tab === "documentos" && (
-            <Documents clientId={clientId} projects={projects} admin={admin} />
+          {selectedProject !== undefined && tab === "documentos" && (
+            <Documents clientId={clientId} projectId={selectedProject} projects={scopedProjects} admin={admin} />
           )}{" "}
-          {tab === "orcamentos" && (
+          {selectedProject !== undefined && tab === "orcamentos" && (
             <ClientBudgetManager
               clientId={clientId}
-              projects={projects}
+              projectId={selectedProject}
+              projects={scopedProjects}
               readOnly={!admin}
             />
           )}{" "}
-          {tab === "pagamentos" && (
-            <Payments clientId={clientId} admin={admin} />
+          {selectedProject !== undefined && tab === "pagamentos" && (
+            <Payments clientId={clientId} projectId={selectedProject} admin={admin} />
           )}
-          {tab === "contratos" && (
+          {selectedProject !== undefined && tab === "contratos" && (
             <>
               <CommercialDocuments
                 clientId={clientId}
                 admin={admin}
                 kind="contrato"
+                projectId={selectedProject}
               />
-              <Payments clientId={clientId} admin={admin} />
+              <Payments clientId={clientId} projectId={selectedProject} admin={admin} />
             </>
           )}
+          </div>
           {tab === "avisos" && (
             <Notifications
               clientId={admin ? clientId : undefined}

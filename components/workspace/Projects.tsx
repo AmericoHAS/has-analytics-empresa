@@ -18,11 +18,14 @@ export default function Projects({
   projects,
   admin = false,
   onChange,
+  onOpen, focused = false,
 }: {
   clientId: string;
   projects: AnalysisProject[];
   admin?: boolean;
   onChange: () => void;
+  onOpen?: (id: string) => void;
+  focused?: boolean;
 }) {
   const [edit, setEdit] = useState<AnalysisProject | null | undefined>(
       undefined,
@@ -103,7 +106,7 @@ export default function Projects({
           <span className="eyebrow">Da pergunta ao resultado</span>
           <h2>Projetos e análises</h2>
         </div>
-        {admin && (
+        {admin && !focused && (
           <button
             className="btn primary"
             disabled={busy}
@@ -116,14 +119,14 @@ export default function Projects({
           </button>
         )}
       </div>
-      <label className="project-view-filter">
+      {!focused && <label className="project-view-filter">
         Exibir projetos{" "}
         <select value={view} onChange={(e) => setView(e.target.value)}>
           <option value="active">Ativos</option>
           <option value="completed">Concluídos</option>
           <option value="archived">Arquivados</option>
         </select>
-      </label>
+      </label>}
       {message && (
         <p className="action-feedback" role="status">
           {message}
@@ -317,7 +320,7 @@ export default function Projects({
       )}
       {projects
         .filter((p) =>
-          view === "archived"
+          focused ? true : view === "archived"
             ? !!p.archived_at
             : !p.archived_at &&
               (view === "completed"
@@ -356,13 +359,13 @@ export default function Projects({
                 {p.deliverables || "A definir após avaliação do escopo."}
               </p>
             </details>
-            <ProjectLifecycle
+            {onOpen ? <button className="btn primary" onClick={() => onOpen(p.id)}>Abrir projeto</button> : <ProjectLifecycle
               project={p}
               admin={admin}
               administrativePanel={
                 admin ? <ProjectDetails project={p} admin={admin} /> : undefined
               }
-            />
+            />}
           </article>
         ))}
     </div>

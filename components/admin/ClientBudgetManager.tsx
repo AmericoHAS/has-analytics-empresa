@@ -8,13 +8,16 @@ import {
 import { proposalIntakeFields, intakeOptions } from "@/lib/commercial/intake";
 import BudgetPlanningFields from "./BudgetPlanningFields";
 import CommercialDocuments from "@/components/workspace/CommercialDocuments";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   defaultModel,
   money,
   totals,
-  estimatedItems,
+  pricingItems,
+  changePricingFactors,
+  coefficientTotal,
+  type BudgetPricing,
   type CommercialModel,
 } from "@/lib/commercial/model";
 import {
@@ -44,10 +47,12 @@ type Budget = {
 };
 export default function ClientBudgetManager({
   clientId,
+  projectId: scopeProjectId,
   projects,
   readOnly = false,
 }: {
   clientId: string;
+  projectId?: string | null;
   projects: {
     id: string;
     title: string;
@@ -97,11 +102,19 @@ export default function ClientBudgetManager({
     [message, setMessage] = useState(""),
     [discount, setDiscount] = useState(0),
     [validity, setValidity] = useState(""),
-    [hours, setHours] = useState(8),
-    [factors, setFactors] = useState<Record<string, number>>({}),
+
     [detail, setDetail] = useState<{ budget: Budget; items: Item[] } | null>(
       null,
     );
+  const initialPricing: BudgetPricing = { hours: 8, rate: model.hourlyRate, base: model.baseValue, additions: 0, factors: {} };
+  const [pricing, setPricing] = useState<BudgetPricing>(initialPricing);
+  const pricingRef = useRef(pricing);
+  const { hours, factors } = pricing;
+  const commitPricing = useCallback((next: BudgetPricing, recalculate = true) => {
+    pricingRef.current = next;
+    setPricing(next);
+    if (recalculate) setItems(current => pricingItems(model, current, next));
+  }, [model]);
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("client_budgets")
@@ -109,8 +122,8 @@ export default function ClientBudgetManager({
       .eq("client_id", clientId)
       .order("created_at", { ascending: false });
     if (error) setMessage("Não foi possível carregar os orçamentos.");
-    else setBudgets(data ?? []);
-  }, [clientId]);
+    else setBudgets((data ?? []).filter(b => scopeProjectId === undefined || b.project_id === scopeProjectId));
+  }, [clientId, scopeProjectId]);
   useEffect(() => {
     if (!readOnly)
       supabase
@@ -127,7 +140,7 @@ export default function ClientBudgetManager({
             );
             return;
           }
-          setRequests(data ?? []);
+          setRequests((data ?? []).filter(r => scopeProjectId === undefined || r.project_id === scopeProjectId));
           setRequestsReady(true);
         });
     supabase
@@ -137,7 +150,7 @@ export default function ClientBudgetManager({
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (error) setMessage("Não foi possível carregar os orçamentos.");
-        else setBudgets(data ?? []);
+        else setBudgets((data ?? []).filter(b => scopeProjectId === undefined || b.project_id === scopeProjectId));
       });
     if (!readOnly)
       supabase
@@ -155,7 +168,7 @@ export default function ClientBudgetManager({
               "Modelos indisponíveis. Confira a migração e recarregue antes de criar uma proposta.",
             );
         });
-  }, [clientId, readOnly]);
+  }, [clientId, readOnly, scopeProjectId]);
   useEffect(() => {
     if (readOnly) return;
     let active = true;
@@ -195,37 +208,26 @@ export default function ClientBudgetManager({
       unitPrice: Number(i.unit_price),
     }));
   }
-  const applyProjectDefaults = useCallback(
-    (data: Record<string, string | number>) => {
-      if (data.estimated_hours) setHours(Number(data.estimated_hours));
-      setRequestDetails((current) => ({
-        ...current,
-        department: current.department || String(data.department ?? ""),
-        research_area:
-          current.research_area || String(data.research_area ?? ""),
-      }));
-      if (data.complexity)
-        setFactors((current) => ({
-          ...current,
-          Complexidade: model.coefficients.findIndex(
-            (c) => c.group === "Complexidade" && c.label === data.complexity,
-          ),
-        }));
-    },
-    [model],
-  );
+  const applyProjectDefaults = useCallback((data: Record<string, string | number>) => {
+    const current = pricingRef.current;
+    const next = changePricingFactors(model, current, { ...current.factors,
+      ...(data.complexity ? { Complexidade: model.coefficients.findIndex(c => c.group === "Complexidade" && c.label === data.complexity) } : {}),
+    });
+    commitPricing({ ...next, hours: data.estimated_hours ? Number(data.estimated_hours) : next.hours });
+    setRequestDetails(current => ({ ...current, complexity: String(data.complexity ?? current.complexity ?? ""), department: current.department || String(data.department ?? ""), research_area: current.research_area || String(data.research_area ?? "") }));
+  }, [model, commitPricing]);
   function applyRequest(r: Request | null) {
     setSource(r);
     setClientDetails(budgetClientDefaults(billing, profile, r));
-    const linked = projects.find((p) => p.id === r?.project_id);
+    const linked = projects.find((p) => p.id === (scopeProjectId ?? r?.project_id));
     const defaults = budgetRequestDefaults(r, linked, model.title);
     setTitle(defaults.title);
     setDescription(defaults.description);
     setRequestDetails(defaults.details);
-    setFactors(requestEstimateFactors(defaults.details, model));
-    setHours(8);
+    const mapped = requestEstimateFactors(defaults.details, model);
+    commitPricing({ hours: 8, rate: model.hourlyRate, base: model.baseValue, additions: model.baseValue * coefficientTotal(model, mapped), factors: mapped });
     setFormVersion((v) => v + 1);
-    setProjectId(r?.project_id ?? "");
+    setProjectId(scopeProjectId ?? r?.project_id ?? "");
   }
   function start() {
     applyRequest(requests[0] ?? null);
@@ -236,21 +238,22 @@ export default function ClientBudgetManager({
         .slice(0, 10),
     );
     setEdit(null);
-    setItems(model.services.filter((s) => s.initial).map((s) => ({ ...s })));
+    setItems(pricingItems(model, model.services.filter(s => s.initial), pricingRef.current));
     setDiscount(model.discount);
     setOpen(true);
     setMessage("");
   }
   async function editing(b: Budget) {
     try {
-      setItems(await itemRows(b.id));
+      const savedItems = await itemRows(b.id);
+      setItems(savedItems);
       setEdit(b);
       setClientDetails(
         b.client_details ?? budgetClientDefaults(billing, profile, null),
       );
       const { data: planning, error: planningError } = await supabase
         .from("budget_planning")
-        .select("request_id,department")
+        .select("*")
         .eq("budget_id", b.id)
         .maybeSingle();
       if (planningError) throw Error("Planejamento indisponível.");
@@ -261,15 +264,18 @@ export default function ClientBudgetManager({
           : null) ??
         null;
       setSource(linkedRequest);
-      setRequestDetails(
-        b.request_details ?? {
+      const details: Record<string, string> = b.request_details ?? {
           ...(linkedRequest?.intake ?? {}),
           ...(linkedRequest?.service_type
             ? { service_type: linkedRequest.service_type }
             : {}),
           ...(planning?.department ? { department: planning.department } : {}),
-        },
-      );
+        };
+      setRequestDetails({ ...details, complexity: String(planning?.complexity ?? details.complexity ?? "") });
+      const mapped = requestEstimateFactors(details, model);
+      mapped.Complexidade = model.coefficients.findIndex(c => c.group === "Complexidade" && c.label === planning?.complexity);
+      commitPricing({ hours: Number(savedItems[1]?.quantity ?? planning?.estimated_hours ?? 8), rate: Number(savedItems[1]?.unitPrice ?? model.hourlyRate),
+        base: Math.min(Number(planning?.base_value ?? model.baseValue), savedItems[0] ? savedItems[0].quantity * savedItems[0].unitPrice : model.baseValue), additions: savedItems[0] ? Math.max(0, savedItems[0].quantity * savedItems[0].unitPrice - Number(planning?.base_value ?? model.baseValue)) : Number(planning?.additions ?? 0), factors: mapped }, false);
       setFormVersion((v) => v + 1);
       setTitle(b.title);
       setDescription(b.description);
@@ -287,6 +293,7 @@ export default function ClientBudgetManager({
     setMessage("Salvando orçamento…");
     const f = new FormData(e.currentTarget);
     f.set("clientId", clientId);
+    f.set("projectId", scopeProjectId ?? projectId);
     f.set("clientDetails", JSON.stringify(clientDetails));
     f.set("requestDetails", JSON.stringify(requestDetails));
     f.set("budgetId", edit?.id ?? "");
@@ -330,16 +337,35 @@ export default function ClientBudgetManager({
   }
   const [documentBudget, setDocumentBudget] = useState<string | null>(null);
   function updateEstimate(nextHours: number, nextFactors: Record<string, number>) {
-    setHours(nextHours);
-    setFactors(nextFactors);
-    setItems((current) => estimatedItems(model, current, nextHours, nextFactors));
+    const previousFactors = pricingRef.current.factors;
+    const next = changePricingFactors(model, pricingRef.current, nextFactors);
+    commitPricing({ ...next, hours: nextHours });
+    const keys: Record<string, string> = { Complexidade: "complexity", Banco: "data_status", Urgência: "urgency", Responsabilidade: "purpose", Modelo: "delivery_model" };
+    setRequestDetails(current => ({ ...current, ...Object.fromEntries(Object.entries(keys).map(([group, key]) => [key, nextFactors[group] === previousFactors[group] ? current[key] ?? "" : model.coefficients[nextFactors[group]]?.label ?? ""])) }));
+  }
+  function updateScope(key: string, value: string) {
+    const nextDetails = { ...requestDetails, [key]: value };
+    setRequestDetails(nextDetails);
+    const groups: Record<string, string> = { data_status: "Banco", urgency: "Urgência", purpose: "Responsabilidade", delivery_model: "Modelo" };
+    const group = groups[key];
+    if (group) {
+      const mapped = requestEstimateFactors(nextDetails, model);
+      commitPricing(changePricingFactors(model, pricingRef.current, { ...pricingRef.current.factors, [group]: mapped[group] ?? -1 }));
+    }
+  }
+  function updateManualItems(next: Item[]) {
+    setItems(next);
+    const current = pricingRef.current;
+    commitPricing({ ...current, hours: next[1]?.quantity ?? current.hours, rate: next[1]?.unitPrice ?? current.rate,
+      base: next[0] ? Math.min(current.base, next[0].quantity * next[0].unitPrice) : current.base,
+      additions: next[0] ? Math.max(0, Math.round((next[0].quantity * next[0].unitPrice - current.base) * 100) / 100) : current.additions }, false);
   }
   const sum = totals(items, discount);
   const shownBudgets = budgets.filter((b) =>
     history ? !!b.archived_at : !b.archived_at,
   );
   if (readOnly)
-    return <CommercialDocuments clientId={clientId} kind="orcamento" />;
+    return <CommercialDocuments clientId={clientId} projectId={scopeProjectId} kind="orcamento" />;
   return (
     <div className="stack">
       <div className="workspace-header">
@@ -457,6 +483,7 @@ export default function ClientBudgetManager({
                 Projeto
                 <select
                   name="projectId"
+                  disabled={typeof scopeProjectId === "string"}
                   value={projectId}
                   onChange={(e) => {
                     const nextId = e.target.value;
@@ -528,25 +555,14 @@ export default function ClientBudgetManager({
                     <select
                       aria-label={label}
                       value={requestDetails[key] ?? ""}
-                      onChange={(e) => {
-                        const next = {
-                          ...requestDetails,
-                          [key]: e.target.value,
-                        };
-                        setRequestDetails(next);
-                        const mapped = requestEstimateFactors(next, model);
-                        setFactors((current) => ({
-                          ...mapped,
-                          Complexidade: current.Complexidade ?? -1,
-                        }));
-                      }}
+                      onChange={(e) => updateScope(key, e.target.value)}
                     >
                       <option value="">A definir</option>
                       {requestDetails[key] &&
-                        !intakeOptions[key].includes(requestDetails[key]) && (
+                        !intakeOptions[key].includes(requestDetails[key]) && !model.coefficients.some(c => c.label === requestDetails[key]) && (
                           <option>{requestDetails[key]}</option>
                         )}
-                      {intakeOptions[key].map((option) => (
+                      {Array.from(new Set([...intakeOptions[key], ...model.coefficients.filter(c => c.group === ({ data_status: "Banco", urgency: "Urgência", purpose: "Responsabilidade", delivery_model: "Modelo" } as Record<string,string>)[key]).map(c => c.label)])).map((option) => (
                         <option key={option}>{option}</option>
                       ))}
                     </select>
@@ -555,18 +571,7 @@ export default function ClientBudgetManager({
                       maxLength={250}
                       aria-label={label}
                       value={requestDetails[key] ?? ""}
-                      onChange={(e) => {
-                        const next = {
-                          ...requestDetails,
-                          [key]: e.target.value,
-                        };
-                        setRequestDetails(next);
-                        const mapped = requestEstimateFactors(next, model);
-                        setFactors((current) => ({
-                          ...mapped,
-                          Complexidade: current.Complexidade ?? -1,
-                        }));
-                      }}
+                      onChange={(e) => updateScope(key, e.target.value)}
                     />
                   )}
                 </label>
@@ -574,7 +579,7 @@ export default function ClientBudgetManager({
             </div>
             <small>
               Opções iguais às da solicitação do cliente. Você pode revisar os
-              dados nesta proposta; o pedido original é preservado.
+              dados nesta proposta; o pedido original é preservado. Banco, urgência, finalidade e modelo de entrega usam os coeficientes configurados. Opções sem correspondência não aplicam acréscimo; área, instituição, título e descrição não têm tarifa própria.
             </small>
           </details>
           <label className="partnership-option">
@@ -594,7 +599,7 @@ export default function ClientBudgetManager({
               acordadas; a parceria não garante autoria.
             </p>
           )}
-          {!edit && (
+          {(
             <details>
               <summary>Estimar com os critérios da planilha</summary>
               <p>
@@ -677,7 +682,7 @@ export default function ClientBudgetManager({
                       step="0.01"
                       value={item.quantity}
                       onChange={(e) =>
-                        setItems(
+                        updateManualItems(
                           items.map((r, j) =>
                             j === i
                               ? { ...r, quantity: Number(e.target.value) }
@@ -696,7 +701,7 @@ export default function ClientBudgetManager({
                       step="0.01"
                       value={item.unitPrice}
                       onChange={(e) =>
-                        setItems(
+                        updateManualItems(
                           items.map((r, j) =>
                             j === i
                               ? { ...r, unitPrice: Number(e.target.value) }
@@ -762,13 +767,16 @@ export default function ClientBudgetManager({
             source={source}
             context={requestDetails}
             onDefaults={edit ? undefined : applyProjectDefaults}
-            onPricingChange={(pricing) => {
-              setHours(pricing.hours);
-              setItems((current) => estimatedItems(
-                { ...model, baseValue: pricing.base + pricing.additions, coefficients: [] },
-                current, pricing.hours, {},
-              ));
+            onPricingChange={(values) => {
+              const current = pricingRef.current;
+              const adjusted = values.base !== current.base
+                ? values.additions + (values.base - current.base) * coefficientTotal(model, current.factors)
+                : values.additions;
+              commitPricing({ ...current, ...values, additions: Math.max(0, Math.round(adjusted * 100) / 100) });
             }}
+            complexity={requestDetails.complexity ?? model.coefficients[factors.Complexidade]?.label ?? ""}
+            onComplexityChange={(value) => updateEstimate(hours, { ...factors, Complexidade: model.coefficients.findIndex(c => c.group === "Complexidade" && c.label === value) })}
+            rate={pricing.rate}
             projectId={projectId}
             key={`${edit?.id ?? "new"}:${source?.id ?? "planning"}:${projectId}`}
             clientId={clientId}
@@ -780,16 +788,8 @@ export default function ClientBudgetManager({
                 : (projects.find((p) => p.id === projectId)?.due_date ?? "")
             }
             hours={hours}
-            base={model.baseValue}
-            additions={
-              model.baseValue *
-              Object.values(factors)
-                .filter((i) => i >= 0)
-                .reduce(
-                  (sum, i) => sum + (model.coefficients[i]?.coefficient ?? 0),
-                  0,
-                )
-            }
+            base={pricing.base}
+            additions={pricing.additions}
           />
           <div className="total-card">
             <span>

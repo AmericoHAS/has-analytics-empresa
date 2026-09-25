@@ -109,3 +109,17 @@ export function estimatedItems(
     };
   });
 }
+
+export type BudgetPricing = { hours: number; rate: number; base: number; additions: number; factors: Record<string, number> };
+export const coefficientTotal = (model: CommercialModel, factors: Record<string, number>) =>
+  Object.values(factors).reduce((sum, index) => sum + (model.coefficients[index]?.coefficient ?? 0), 0);
+export function changePricingFactors(model: CommercialModel, pricing: BudgetPricing, factors: Record<string, number>): BudgetPricing {
+  return { ...pricing, factors, additions: Math.max(0, Math.round((pricing.additions + pricing.base * (coefficientTotal(model, factors) - coefficientTotal(model, pricing.factors))) * 100) / 100) };
+}
+export function pricingItems(model: CommercialModel, items: { description: string; quantity: number; unitPrice: number }[], pricing: BudgetPricing) {
+  const current = items.length ? items : model.services.filter(s => s.initial);
+  return current.map((item, index) => index === 0
+    ? { ...item, quantity: 1, unitPrice: Math.max(0, Math.round((pricing.base + pricing.additions + (current.length === 1 ? pricing.hours * pricing.rate : 0)) * 100) / 100) }
+    : index === 1 ? { ...item, quantity: pricing.hours > 0 ? pricing.hours : 1, unitPrice: pricing.hours > 0 ? pricing.rate : 0 }
+    : { ...item });
+}

@@ -17,6 +17,7 @@ export default function BudgetPlanningFields({
   additions,
   onDefaults,
   onPricingChange,
+  rate, complexity, onComplexityChange,
 }: {
   source?: {
     id: string;
@@ -33,7 +34,8 @@ export default function BudgetPlanningFields({
   base: number;
   additions: number;
   onDefaults?: (data: Record<string, string | number>) => void;
-  onPricingChange: (pricing: { hours: number; base: number; additions: number }) => void;
+  onPricingChange: (pricing: { hours: number; base: number; additions: number; rate: number }) => void;
+  rate: number; complexity: string; onComplexityChange: (value: string) => void;
 }) {
   const [values, setValues] = useState<Record<string, string | number>>({});
   const [request, setRequest] = useState(source?.id ?? "");
@@ -133,15 +135,19 @@ export default function BudgetPlanningFields({
         ].map(([name, label, key]) => (
           <label key={name}>
             {label}
-            <PresetField
+            {key === "complexity" ? <select name={name} value={complexity} onChange={e => onComplexityChange(e.target.value)}>
+              <option value="">Sem acréscimo</option>
+              {Array.from(new Set([...projectPresets.complexity, ...(complexity ? [complexity] : [])])).map(v => <option key={v}>{v}</option>)}
+            </select> : <PresetField
               name={name}
               value={String(values[key] ?? "")}
               options={projectPresets[key] ?? []}
-            />
+            />}
           </label>
         ))}
         {[
           ["estimatedHours", "Horas estimadas", "estimated_hours", hours],
+          ["hourlyRate", "Valor-hora (R$)", "hourly_rate", rate],
           ["baseValue", "Valor base (R$)", "base_value", base],
           ["additions", "Acréscimos (R$)", "additions", additions],
         ].map(([name, label, key, value]) => (
@@ -153,16 +159,11 @@ export default function BudgetPlanningFields({
               min="0"
               step="0.01"
               value={
-                values[String(key)] ?? Math.round(Number(value) * 100) / 100
+                Math.round(Number(value) * 100) / 100
               }
               onChange={(e) => {
-                const next = { ...values, [String(key)]: e.target.value };
-                setValues(next);
-                onPricingChange({
-                  hours: Number(next.estimated_hours ?? hours),
-                  base: Number(next.base_value ?? base),
-                  additions: Number(next.additions ?? additions),
-                });
+                const next = { estimated_hours: hours, base_value: base, additions, hourly_rate: rate, [String(key)]: Number(e.target.value) };
+                onPricingChange({ hours: next.estimated_hours, base: next.base_value, additions: next.additions, rate: next.hourly_rate });
               }}
             />
           </label>

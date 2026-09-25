@@ -57,6 +57,7 @@ const statuses: Record<string, string> = {
 };
 export default function CommercialDocuments({
   clientId,
+  projectId,
   admin = false,
   kind,
   onChange,
@@ -65,6 +66,7 @@ export default function CommercialDocuments({
   compact = false,
 }: {
   clientId: string;
+  projectId?: string | null;
   admin?: boolean;
   kind: "orcamento" | "contrato";
   onChange?: () => void;
@@ -101,7 +103,7 @@ export default function CommercialDocuments({
         .order("created_at", { ascending: false }),
       supabase
         .from("client_budgets")
-        .select("id,budget_number,title,status,revision,archived_at")
+        .select("id,project_id,budget_number,title,status,revision,archived_at")
         .eq("client_id", clientId)
         .order("created_at", { ascending: false }),
     ]);
@@ -111,19 +113,21 @@ export default function CommercialDocuments({
       );
       return;
     }
+    const scopedBudgets = (b.data ?? []).filter(v => (projectId === undefined || v.project_id === projectId) && (!budgetId || v.id === budgetId));
+    const ids = new Set(scopedBudgets.map(v => v.id));
     setLoaded(true);
     setDocs(
-      (d.data ?? []).filter((v) => !budgetId || v.budget_id === budgetId),
+      (d.data ?? []).filter((v) => ids.has(v.budget_id)),
     );
-    setBudgets((b.data ?? []).filter((v) => !budgetId || v.id === budgetId));
+    setBudgets(scopedBudgets);
     const { data: p } = await supabase
       .from("budget_payments")
       .select("budget_id,document_id")
       .eq("client_id", clientId);
     setChoices(
-      Object.fromEntries((p ?? []).map((v) => [v.budget_id, v.document_id])),
+      Object.fromEntries((p ?? []).filter(v => ids.has(v.budget_id)).map((v) => [v.budget_id, v.document_id])),
     );
-  }, [clientId, kind, budgetId]);
+  }, [clientId, kind, budgetId, projectId]);
   useEffect(() => {
     const timer = setTimeout(() => void load(), 0);
     if (admin)
