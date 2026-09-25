@@ -14,8 +14,10 @@ const nextConfig: NextConfig = {
       "./templates/has/fonts/*.ttf",
       "./templates/has/fonts/LICENSE.txt",
       "./.has-pdf-runtime/chromium",
+      "./.has-pdf-runtime/*.so",
+      "./.has-pdf-runtime/*.so.1",
+      "./.has-pdf-runtime/*.json",
       "./node_modules/@sparticuz/chromium/bin/fonts.tar.br",
-      "./node_modules/@sparticuz/chromium/bin/swiftshader.tar.br",
       "./node_modules/@sparticuz/chromium/bin/al2023.tar.br",
       "./node_modules/playwright-core/**/*",
       "./node_modules/docx-preview/dist/docx-preview.min.js",
@@ -26,7 +28,7 @@ const nextConfig: NextConfig = {
   // The executable is already unpacked during build. Do not ship a second
   // compressed copy or inflate this 199 MB binary into the runtime /tmp.
   outputFileTracingExcludes: {
-    "/*": ["./node_modules/@sparticuz/chromium/bin/chromium.br"],
+    "/*": ["./node_modules/@sparticuz/chromium/bin/chromium.br", "./node_modules/@sparticuz/chromium/bin/swiftshader.tar.br"],
     "/api/admin/commercial-documents": ["./templates/has/**/*.zip"],
   },
 

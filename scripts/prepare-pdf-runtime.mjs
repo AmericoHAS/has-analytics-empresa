@@ -4,6 +4,10 @@ import { createBrotliDecompress } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { extract } = createRequire(require.resolve('@sparticuz/chromium'))('tar-fs');
+export const graphicsFiles = ['libEGL.so','libGLESv2.so','libvk_swiftshader.so','libvulkan.so.1','vk_swiftshader_icd.json'];
 
 export async function preparePdfRuntime(root = process.cwd()) {
   const directory = join(root, '.has-pdf-runtime');
@@ -24,6 +28,17 @@ export async function preparePdfRuntime(root = process.cwd()) {
     } finally { await file.close(); }
     await chmod(temporary, 0o755);
     await rename(temporary, executable);
+    // Chromium locates SwiftShader relative to its executable. Keep them together,
+    // rather than putting the executable in the bundle and its drivers in /tmp.
+    await pipeline(
+      createReadStream(join(root, 'node_modules', '@sparticuz', 'chromium', 'bin', 'swiftshader.tar.br')),
+      createBrotliDecompress(),
+      extract(directory, { ignore: (_name, header) => !graphicsFiles.includes(header.name) }),
+    );
+    for (const name of graphicsFiles) {
+      const asset = await open(join(directory, name), 'r');
+      await asset.close();
+    }
     return executable;
   } finally {
     // Only this build's exact partial file; never remove shared /tmp contents.

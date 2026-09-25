@@ -19,7 +19,7 @@ for(const trace of (await walk('.next/server')).filter(p=>p.endsWith('.nft.json'
   if(isPdf) {
     found=true;
     if(normalized.some(f=>/templates\/has\/.*\.zip$/i.test(f))) throw Error('Cópias ZIP dos modelos incluídas no pacote PDF. Revise next.config.ts.');
-    for(const suffix of ['.has-pdf-runtime/chromium','playwright-core/browsers.json','docx-preview/dist/docx-preview.min.js','jszip/dist/jszip.min.js','chromium/bin/fonts.tar.br','chromium/bin/al2023.tar.br','chromium/bin/swiftshader.tar.br','templates/has/modelo_orcamento_HAS.docx','templates/has/modelo_contrato_HAS.docx','templates/has/modelo_recibo_HAS.docx']) {
+    for(const suffix of ['.has-pdf-runtime/chromium','playwright-core/browsers.json','docx-preview/dist/docx-preview.min.js','jszip/dist/jszip.min.js','chromium/bin/fonts.tar.br','chromium/bin/al2023.tar.br','.has-pdf-runtime/libEGL.so','.has-pdf-runtime/libGLESv2.so','.has-pdf-runtime/libvk_swiftshader.so','.has-pdf-runtime/libvulkan.so.1','.has-pdf-runtime/vk_swiftshader_icd.json','templates/has/modelo_orcamento_HAS.docx','templates/has/modelo_contrato_HAS.docx','templates/has/modelo_recibo_HAS.docx']) {
       if(!normalized.some(f=>f.endsWith(suffix))) throw Error(`Arquivo obrigatório ausente: ${suffix}`);
     }
     if(normalized.some(f=>f.endsWith('chromium/bin/chromium.br'))) throw Error('Chromium duplicado: binário e arquivo comprimido.');

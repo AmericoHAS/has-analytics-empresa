@@ -130,7 +130,7 @@ async function renderHasTemplatePdf(
     // Only small support assets are extracted. Never invoke executablePath(),
     // which would duplicate the entire executable in the temporary volume.
     const bin = join(process.cwd(), "node_modules", "@sparticuz", "chromium", "bin");
-    await Promise.all(["fonts.tar.br", "swiftshader.tar.br", "al2023.tar.br"].map(file => inflate(join(bin, file))));
+    await Promise.all(["fonts.tar.br", "al2023.tar.br"].map(file => inflate(join(bin, file))));
     setupLambdaEnvironment(join(tmpdir(), "al2023", "lib"));
   }
   diagnostic.stage = "launch";
