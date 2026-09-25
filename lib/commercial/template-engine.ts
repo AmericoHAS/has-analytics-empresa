@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { printTemplatePdf, isChromiumPrintFailure } from "./pdf-print";
-import { withPdfCapacity, recoverClosedBrowser, isClosedBrowser, documentBrowserArgs, temporarySpaceMb, pdfResources, browserFailureSignal, preparedChromiumPath } from "./pdf-runtime";
+import { withPdfCapacity, recoverClosedBrowser, isClosedBrowser, documentBrowserArgs, temporarySpaceMb, pdfResources, browserFailureSignal, preparedChromiumPath, pdfBrowserEnvironment } from "./pdf-runtime";
 import { randomUUID, createHash } from "node:crypto";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
@@ -142,6 +142,7 @@ async function renderHasTemplatePdf(
   // Empty profile path lets Playwright own and remove the isolated temporary profile.
   const context = await browserEngine.launchPersistentContext("", {
     executablePath,
+    env: local ? undefined : pdfBrowserEnvironment(join(process.cwd(), ".has-pdf-runtime")),
     ignoreDefaultArgs: !local && resources.useSharedMemory ? ["--disable-dev-shm-usage"] : undefined,
     args: local ? ["--no-sandbox"] : documentBrowserArgs(chromium.args),
     headless: true,

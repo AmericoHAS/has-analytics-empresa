@@ -86,3 +86,13 @@ export async function preparedChromiumPath(root = process.cwd()) {
   catch { throw Error("Chromium não preparado no build. Configure o Build Command como npm run build e publique novamente."); }
   return executable;
 }
+
+// Resolve Vulkan explicitly: the executable is packaged outside /tmp and the
+// loader must not fall back to a host driver or the process working directory.
+export function pdfBrowserEnvironment(directory: string, inherited: NodeJS.ProcessEnv = process.env) {
+  return { ...inherited,
+    LD_LIBRARY_PATH: [directory, inherited.LD_LIBRARY_PATH].filter(Boolean).join(":"),
+    VK_ICD_FILENAMES: join(directory, "vk_swiftshader_icd.json"),
+    VK_DRIVER_FILES: join(directory, "vk_swiftshader_icd.json"),
+  };
+}

@@ -62,3 +62,13 @@ test('browser failure diagnostics expose fixed categories, never raw document da
   assert.equal(runtime.browserFailureSignal(Error('private path ENOSPC')), 'disk_full');
   assert.equal(runtime.browserFailureSignal(Error('private text')), 'unknown');
 });
+
+test('Vulkan uses packaged drivers and preserves existing runtime libraries', () => {
+  const original={LD_LIBRARY_PATH:'/tmp/al2023/lib',SAMPLE:'kept'};
+  const env=runtime.pdfBrowserEnvironment('/app/.has-pdf-runtime',original);
+  assert.equal(env.LD_LIBRARY_PATH,'/app/.has-pdf-runtime:/tmp/al2023/lib');
+  assert.ok(env.VK_ICD_FILENAMES.endsWith('vk_swiftshader_icd.json'));
+  assert.equal(env.VK_DRIVER_FILES,env.VK_ICD_FILENAMES);
+  assert.equal(env.SAMPLE,'kept');
+  assert.deepEqual(original,{LD_LIBRARY_PATH:'/tmp/al2023/lib',SAMPLE:'kept'});
+});

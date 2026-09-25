@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/prepare-pdf-runtime.mjs && next build && node scripts/audit-pdf-bundle.mjs",
+    "build": "node scripts/prepare-pdf-runtime.mjs && node scripts/check-pdf-linux.mjs && next build && node scripts/audit-pdf-bundle.mjs",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next",
     "test": "node --test tests/*.test.mjs"
