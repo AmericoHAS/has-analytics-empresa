@@ -15,3 +15,9 @@ node_modules/
 
 # Chromium Linux preparado automaticamente no build; não versionar.
 /.has-pdf-runtime/
+
+# Materiais originais arquivados fora do aplicativo.
+/imagens-capas/
+/.Rhistory
+/templates/has/*.zip
+

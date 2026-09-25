@@ -6,7 +6,7 @@ import { randomUUID, createHash } from "node:crypto";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import JSZip from "jszip";
-import { chromium as browserEngine, type Page, type BrowserContext } from "playwright-core";
+import { chromium as browserEngine, type Page } from "playwright-core";
 import chromium, { inflate, setupLambdaEnvironment } from "@sparticuz/chromium";
 import { tmpdir } from "node:os";
 export type TemplateKind = "orcamento" | "contrato" | "recibo";
@@ -138,19 +138,20 @@ async function renderHasTemplatePdf(
   diagnostic.sharedFreeMb = resources.sharedFreeMb;
   diagnostic.memoryStorage = !local && resources.useSharedMemory ? "shared_memory" : "temporary";
   diagnostic.lightweightPrint ||= !local && resources.lowTemporarySpace;
-  const browser = await browserEngine.launch({
+  // A fresh default context avoids Chromium single-process/incognito crashes.
+  // Empty profile path lets Playwright own and remove the isolated temporary profile.
+  const context = await browserEngine.launchPersistentContext("", {
     executablePath,
     ignoreDefaultArgs: !local && resources.useSharedMemory ? ["--disable-dev-shm-usage"] : undefined,
     args: local ? ["--no-sandbox"] : documentBrowserArgs(chromium.args),
     headless: true,
   });
   let page: Page | undefined;
-  let context: BrowserContext | undefined;
   try {
-    diagnostic.browser = browser.version();
-    diagnostic.stage = "render_docx";
-    context = await browser.newContext();
-    page = await context.newPage();
+    diagnostic.browser = context.browser()?.version() ?? "unknown";
+    diagnostic.stage = "create_page";
+    page = context.pages()[0] ?? await context.newPage();
+    diagnostic.stage = "load_scripts";
     await page.route("**/*", (route) =>
       /^(data:|blob:|about:)/.test(route.request().url())
         ? route.continue()
@@ -160,6 +161,7 @@ async function renderHasTemplatePdf(
       '<!doctype html><html><head><meta charset="utf-8"></head><body><div id="watermark"></div><main id="document"></main></body></html>',
     );
     for (const content of scripts) await page.addScriptTag({ content });
+    diagnostic.stage = "render_docx";
     await page.evaluate(async (data) => {
       const runtime = window as unknown as {
         docx: {
@@ -236,8 +238,7 @@ async function renderHasTemplatePdf(
     return await printTemplatePdf(page, diagnostic.reference, !diagnostic.lightweightPrint);
   } finally {
     await page?.close().catch(() => undefined);
-    await context?.close().catch(() => undefined);
-    await browser.close().catch(() => {
+    await context.close().catch(() => {
       console.warn("[HAS_PDF_CLOSE_FAILED]", {
         reference: diagnostic.reference,
       });
