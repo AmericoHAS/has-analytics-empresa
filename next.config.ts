@@ -8,7 +8,11 @@ const nextConfig: NextConfig = {
 
   outputFileTracingIncludes: {
     "/api/admin/commercial-documents": [
-      "./templates/has/**/*",
+      "./templates/has/modelo_orcamento_HAS.docx",
+      "./templates/has/modelo_contrato_HAS.docx",
+      "./templates/has/modelo_recibo_HAS.docx",
+      "./templates/has/fonts/*.ttf",
+      "./templates/has/fonts/LICENSE.txt",
       "./.has-pdf-runtime/chromium",
       "./node_modules/@sparticuz/chromium/bin/fonts.tar.br",
       "./node_modules/@sparticuz/chromium/bin/swiftshader.tar.br",
@@ -23,6 +27,7 @@ const nextConfig: NextConfig = {
   // compressed copy or inflate this 199 MB binary into the runtime /tmp.
   outputFileTracingExcludes: {
     "/*": ["./node_modules/@sparticuz/chromium/bin/chromium.br"],
+    "/api/admin/commercial-documents": ["./templates/has/**/*.zip"],
   },
 
   turbopack: {

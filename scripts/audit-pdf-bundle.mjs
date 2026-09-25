@@ -18,6 +18,7 @@ for(const trace of (await walk('.next/server')).filter(p=>p.endsWith('.nft.json'
   if(!isPdf && heavy.length) throw Error(`Dependências PDF incluídas indevidamente: ${trace}`);
   if(isPdf) {
     found=true;
+    if(normalized.some(f=>/templates\/has\/.*\.zip$/i.test(f))) throw Error('Cópias ZIP dos modelos incluídas no pacote PDF. Revise next.config.ts.');
     for(const suffix of ['.has-pdf-runtime/chromium','playwright-core/browsers.json','docx-preview/dist/docx-preview.min.js','jszip/dist/jszip.min.js','chromium/bin/fonts.tar.br','chromium/bin/al2023.tar.br','chromium/bin/swiftshader.tar.br','templates/has/modelo_orcamento_HAS.docx','templates/has/modelo_contrato_HAS.docx','templates/has/modelo_recibo_HAS.docx']) {
       if(!normalized.some(f=>f.endsWith(suffix))) throw Error(`Arquivo obrigatório ausente: ${suffix}`);
     }
@@ -25,7 +26,11 @@ for(const trace of (await walk('.next/server')).filter(p=>p.endsWith('.nft.json'
   }
   const resolved=[...new Set(files.map(f=>resolve(dirname(trace),f)))];
   const bytes=(await Promise.all(resolved.map(async f=>(await stat(f)).size))).reduce((a,b)=>a+b,0);
-  if(isPdf && bytes>250_000_000) throw Error('Pacote PDF ultrapassa 250 MB. Revise antes de publicar.');
-  console.info(`[HAS_FUNCTION_BUNDLE] ${trace.replaceAll('\\','/')} ${(bytes/1048576).toFixed(2)} MiB`);
+  console.info(`[HAS_FUNCTION_BUNDLE] ${trace.replaceAll('\\','/')} ${(bytes/1048576).toFixed(2)} MiB (${bytes} bytes)`);
+  if(isPdf && bytes>250_000_000) {
+    const largest=(await Promise.all(resolved.map(async file=>({ file:file.replaceAll('\\','/').replace(process.cwd().replaceAll('\\','/')+'/', ''), bytes:(await stat(file)).size })))).sort((a,b)=>b.bytes-a.bytes).slice(0,10);
+    console.error('[HAS_FUNCTION_BUNDLE_LARGEST]', largest);
+    throw Error(`Pacote PDF tem ${bytes} bytes (${(bytes/1048576).toFixed(2)} MiB); limite preventivo: 250000000 bytes. Revise os maiores arquivos acima.`);
+  }
 }
 if(!found) throw Error('Rota dedicada do PDF ausente do build.');
