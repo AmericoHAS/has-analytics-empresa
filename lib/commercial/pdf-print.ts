@@ -8,18 +8,20 @@ export function isChromiumPrintFailure(error: unknown): boolean {
   );
 }
 
-// The normal path keeps the existing layout. Only a Chromium printing failure
-// retries without its separate header/footer renderer; the same blue bars are
-// then drawn in the PDF margins. Native document content and watermark stay intact.
+// Under resource pressure (or after a printing failure), skip the separate
+// header/footer renderer and draw the same blue bars in the PDF margins.
+// Native document content and watermark stay intact.
 export async function printTemplatePdf(
   page: Pick<Page, "pdf">,
   reference: string,
+  useNativeHeaderFooter = true,
 ) {
   const options = {
     format: "A4" as const,
     printBackground: true,
     preferCSSPageSize: true,
   };
+  if (useNativeHeaderFooter) {
   try {
     return Buffer.from(
       await page.pdf({
@@ -39,7 +41,9 @@ export async function printTemplatePdf(
       mode: "without_header_footer",
     });
   }
-  // Exactly one retry; do not mask persistent failures or return a partial file.
+  }
+  // Low-space mode skips the auxiliary renderer from the outset. The regular
+  // path still retries exactly once; neither path can return a partial file.
   const bytes = await page.pdf({ ...options, displayHeaderFooter: false });
   const pdf = await PDFDocument.load(bytes);
   if (!pdf.getPageCount()) throw Error("PDF vazio.");

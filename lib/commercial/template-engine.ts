@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { printTemplatePdf, isChromiumPrintFailure } from "./pdf-print";
-import { withPdfCapacity, recoverClosedBrowser, isClosedBrowser, documentBrowserArgs, temporarySpaceMb } from "./pdf-runtime";
+import { withPdfCapacity, recoverClosedBrowser, isClosedBrowser, documentBrowserArgs, temporarySpaceMb, pdfResources, browserFailureSignal } from "./pdf-runtime";
 import { randomUUID, createHash } from "node:crypto";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
@@ -57,11 +57,15 @@ async function generateTemplatePdf(word: Buffer, kind: TemplateKind) {
     reference: randomUUID().slice(0, 8),
     stage: "assets",
     browser: "unknown",
+    temporaryFreeMbBeforePrint: null as number | null,
+    sharedFreeMb: null as number | null,
+    memoryStorage: "temporary",
+    lightweightPrint: false,
   };
   try {
     return await recoverClosedBrowser(
       () => renderHasTemplatePdf(word, kind, diagnostic),
-      () => console.warn("[HAS_PDF_BROWSER_RESTART]", { ...diagnostic, kind }),
+      () => { diagnostic.lightweightPrint = true; console.warn("[HAS_PDF_BROWSER_RESTART]", { ...diagnostic, kind }); },
     );
   } catch (error) {
     // Never log the DOCX, HTML, budget text, client identity or authentication data.
@@ -69,6 +73,7 @@ async function generateTemplatePdf(word: Buffer, kind: TemplateKind) {
       ...diagnostic,
       kind,
       bytes: word.length,
+      signal: browserFailureSignal(error),
       platform: process.platform,
       rssMb: Math.round(process.memoryUsage().rss / 1048576),
       temporaryFreeMb: await temporarySpaceMb(),
@@ -86,7 +91,7 @@ async function generateTemplatePdf(word: Buffer, kind: TemplateKind) {
 async function renderHasTemplatePdf(
   word: Buffer,
   kind: TemplateKind,
-  diagnostic: { reference: string; stage: string; browser: string },
+  diagnostic: { reference: string; stage: string; browser: string; temporaryFreeMbBeforePrint: number | null; sharedFreeMb: number | null; memoryStorage: string; lightweightPrint: boolean },
 ) {
   const scripts = await Promise.all([
     readFile(
@@ -116,8 +121,14 @@ async function renderHasTemplatePdf(
       : undefined);
   diagnostic.stage = "launch";
   if (!local) chromium.setGraphicsMode = false;
+  const executablePath = local ?? (await chromium.executablePath());
+  const resources = await pdfResources();
+  diagnostic.sharedFreeMb = resources.sharedFreeMb;
+  diagnostic.memoryStorage = !local && resources.useSharedMemory ? "shared_memory" : "temporary";
+  diagnostic.lightweightPrint ||= !local && resources.lowTemporarySpace;
   const browser = await browserEngine.launch({
-    executablePath: local ?? (await chromium.executablePath()),
+    executablePath,
+    ignoreDefaultArgs: !local && resources.useSharedMemory ? ["--disable-dev-shm-usage"] : undefined,
     args: local ? ["--no-sandbox"] : documentBrowserArgs(chromium.args),
     headless: true,
   });
@@ -204,7 +215,10 @@ async function renderHasTemplatePdf(
       });
     });
     diagnostic.stage = "print_pdf";
-    return await printTemplatePdf(page, diagnostic.reference);
+    diagnostic.temporaryFreeMbBeforePrint = await temporarySpaceMb();
+    diagnostic.lightweightPrint ||= !local && diagnostic.temporaryFreeMbBeforePrint !== null && diagnostic.temporaryFreeMbBeforePrint < 64;
+    if (diagnostic.lightweightPrint) console.info("[HAS_PDF_LOW_RESOURCE_PRINT]", { ...diagnostic, kind });
+    return await printTemplatePdf(page, diagnostic.reference, !diagnostic.lightweightPrint);
   } finally {
     await browser.close().catch(() => {
       console.warn("[HAS_PDF_CLOSE_FAILED]", {

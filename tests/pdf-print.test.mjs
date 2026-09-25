@@ -91,3 +91,14 @@ test("persistent failure stops after two attempts; unrelated errors are not sile
   );
   assert.equal(calls, 1);
 });
+test('low-space mode avoids the auxiliary renderer and retains every page', async () => {
+  const bytes = await documentBytes(); let calls = 0;
+  const result = await printTemplatePdf({pdf: async options => {
+    calls++; assert.equal(options.displayHeaderFooter, false);
+    assert.equal(options.headerTemplate, undefined); return bytes;
+  }}, 'test-low-space', false);
+  assert.equal(calls, 1);
+  const doc = await pdfLib.PDFDocument.load(result);
+  assert.equal(doc.getPageCount(), 2);
+  for (const page of doc.getPages()) assert.equal(page.getWidth(), 595.28);
+});

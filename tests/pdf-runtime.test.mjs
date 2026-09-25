@@ -47,3 +47,14 @@ test('temporary space diagnostics return no filenames or document content',async
   const space=await temporarySpaceMb();
   assert.ok(space===null || Number.isFinite(space) && space>=0);
 });
+test('shared-memory selection is conditional on measured available space', () => {
+  for (const space of [22, 30]) assert.equal(runtime.shouldUseSharedMemory(space, 63), true);
+  for (const [temp,shared] of [[100,63],[22,null],[null,63],[22,10],[30,30],[22,47]]) {
+    assert.equal(runtime.shouldUseSharedMemory(temp,shared), false);
+  }
+});
+test('browser failure diagnostics expose fixed categories, never raw document data', () => {
+  assert.equal(runtime.browserFailureSignal(Error('private text SIGBUS')), 'sigbus');
+  assert.equal(runtime.browserFailureSignal(Error('private path ENOSPC')), 'disk_full');
+  assert.equal(runtime.browserFailureSignal(Error('private text')), 'unknown');
+});
