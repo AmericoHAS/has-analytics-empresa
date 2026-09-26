@@ -140,6 +140,7 @@ async function renderHasTemplatePdf(
   const zip = await JSZip.loadAsync(word);
   // Verified individually in all three official templates: 1=logo, 2=signature, 3=watermark.
   const watermark = await zip.file("word/media/image3.png")?.async("base64");
+  const logo = await zip.file("word/media/image1.png")?.async("base64");
   const local =
     process.env.DOCUMENT_BROWSER_PATH ||
     (process.platform === "win32"
@@ -253,6 +254,16 @@ async function renderHasTemplatePdf(
         ),
       );
     });
+    // Only the verified logo asset: max-width can reduce its width at print layout
+    // while docx-preview retains a fixed height. Do not touch signature/watermark.
+    if (logo) await page.evaluate((source) => {
+      for (const image of Array.from(document.images)) {
+        if (image.getAttribute("src") === source) {
+          image.style.height = "auto";
+          image.style.objectFit = "contain";
+        }
+      }
+    }, `data:image/png;base64,${logo}`);
     // A table row taller than one page is allowed to flow instead of clipping.
     await page.evaluate(() => {
       document.querySelectorAll("p").forEach((p) => {

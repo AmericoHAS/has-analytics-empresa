@@ -1,4 +1,5 @@
 "use client";
+import { selectedDocumentId } from "@/lib/commercial/document-selection";
 import { generateCommercialDocument } from "@/lib/commercial/generate-client";
 import { paymentAction } from "@/app/admin/payment-actions";
 import { money } from "@/lib/commercial/model";
@@ -19,6 +20,7 @@ type Doc = {
   offer_group: string | null;
   payment_option: PaymentQuote | null;
   external_revision: boolean;
+  snapshot: { budget?: { total: number }; externalFiles?: { pdfName?: string; wordName?: string; originalId?: string } };
   provider_signed: boolean;
   id: string;
   title: string;
@@ -96,7 +98,7 @@ export default function CommercialDocuments({
       supabase
         .from("commercial_documents")
         .select(
-          "offer_group,payment_option,external_revision,provider_signed,id,title,body,budget_id,source_revision,status,created_at,published_at,decided_at,decision_note,signature_status,signed_path",
+          "snapshot,offer_group,payment_option,external_revision,provider_signed,id,title,body,budget_id,source_revision,status,created_at,published_at,decided_at,decision_note,signature_status,signed_path",
         )
         .eq("client_id", clientId)
         .eq("kind", kind)
@@ -352,9 +354,7 @@ export default function CommercialDocuments({
             Forma de pagamento · {variants[0]?.title}
             <select
               value={
-                selected[group] ??
-                choices[variants[0]?.budget_id] ??
-                variants[0]?.id
+                selectedDocumentId(variants, selected[group], choices[variants[0]?.budget_id])
               }
               onChange={(e) =>
                 setSelected((v) => ({ ...v, [group]: e.target.value }))
@@ -386,13 +386,10 @@ export default function CommercialDocuments({
             !d.offer_group ||
             d.status === "substituido" ||
             d.id ===
-              (selected[d.offer_group] ??
-                choices[d.budget_id] ??
-                docs.find(
-                  (v) =>
-                    v.offer_group === d.offer_group &&
-                    v.status !== "substituido",
-                )?.id),
+              selectedDocumentId(
+                docs.filter(v => v.offer_group === d.offer_group && v.status !== "substituido"),
+                selected[d.offer_group], choices[d.budget_id],
+              ),
         )
         .map((d) => {
           const current = budgets.find((b) => b.id === d.budget_id);
@@ -592,14 +589,20 @@ export default function CommercialDocuments({
                   )}
               </div>
               {d.external_revision && (
+                <div className="onboarding-notice">
+                {docs.find(v => v.budget_id === d.budget_id && v.status !== "substituido")?.id === d.id && <strong>Revisão mais recente deste orçamento</strong>}
+                {d.snapshot?.budget && <p>Valor registrado nesta versão: {money(Number(d.snapshot.budget.total))}</p>}
                 <p>
-                  Revisão feita fora do site. O conteúdo oficial desta versão
-                  está nos arquivos PDF e Word anexados.
+                  Revisão anexada · orçamento {current?.budget_number} · revisão {d.source_revision}.
+                  {" "}PDF: {d.snapshot?.externalFiles?.pdfName || "PDF desta versão"}.
+                  {" "}Word: {d.snapshot?.externalFiles?.wordName || "DOCX desta versão"}.
+                  {d.status === "rascunho" ? " Arquivos salvos; ainda não disponibilizados ao cliente." : ""}
                 </p>
+                </div>
               )}
               {admin && !stale && (
                 <details>
-                  <summary>Enviar revisão feita no Word (DOCX + PDF)</summary>
+                  <summary>Substituir documentos desta versão (DOCX + PDF)</summary>
                   <p>
                     Edite o Word, exporte o PDF correspondente e envie os dois
                     arquivos. Se alterar valores ou escopo, atualize primeiro o
@@ -650,15 +653,24 @@ export default function CommercialDocuments({
                             d.id,
                             paths[0],
                             paths[1],
+                            { pdfName: pdf.name, wordName: word.name },
                           );
                           if (!result.success) throw Error(result.message);
                           paths.length = 0;
                           return result;
                         } catch (error) {
-                          if (paths.length)
-                            await supabase.storage
-                              .from("commercial-documents")
-                              .remove(paths);
+                          if (paths.length) {
+                            // A response can be lost after commit. Never remove a referenced file.
+                            const [pdfRefs, wordRefs] = await Promise.all([
+                              supabase.from("commercial_documents").select("pdf_path").in("pdf_path", paths),
+                              supabase.from("commercial_documents").select("word_path").in("word_path", paths),
+                            ]);
+                            if (!pdfRefs.error && !wordRefs.error) {
+                              const referenced = new Set([...(pdfRefs.data ?? []).map(v => v.pdf_path), ...(wordRefs.data ?? []).map(v => v.word_path)]);
+                              const orphaned = paths.filter(path => !referenced.has(path));
+                              if (orphaned.length) await supabase.storage.from("commercial-documents").remove(orphaned);
+                            }
+                          }
                           return {
                             success: false,
                             message:

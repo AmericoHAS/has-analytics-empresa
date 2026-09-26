@@ -238,6 +238,7 @@ export async function registerCommercialRevision(
   originalId: string,
   pdfPath: string,
   wordPath: string,
+  names?: { pdfName: string; wordName: string },
 ) {
   try {
     z.string().uuid().parse(originalId);
@@ -248,6 +249,12 @@ export async function registerCommercialRevision(
       .eq("id", originalId)
       .single();
     if (error || !d) throw Error("Documento de origem não encontrado.");
+    const fileNames = z.object({ pdfName: z.string().max(255), wordName: z.string().max(255) }).optional().parse(names);
+    const { data: budget, error: budgetError } = await db.from("client_budgets")
+      .select("revision,archived_at").eq("id", d.budget_id).eq("client_id", d.client_id).single();
+    if (budgetError || !budget) throw Error("Não foi possível conferir a versão do orçamento.");
+    if (budget.archived_at || budget.revision !== d.source_revision)
+      throw Error("O valor ou escopo do orçamento mudou. Gere uma versão atualizada e anexe a revisão nela; esta versão conserva os valores anteriores.");
     for (const [path, ext] of [
       [pdfPath, ".pdf"],
       [wordPath, ".docx"],
@@ -287,7 +294,7 @@ export async function registerCommercialRevision(
         kind: d.kind,
         title: d.title,
         body: d.body,
-        snapshot: d.snapshot,
+        snapshot: { ...d.snapshot, externalFiles: { ...fileNames, originalId: d.id } },
         source_revision: d.source_revision,
         pdf_path: pdfPath,
         word_path: wordPath,

@@ -26,7 +26,28 @@ function load(file, recoverPrint = false) {
       id === "./template-engine"
         ? load("lib/commercial/template-engine.ts", recoverPrint)
         : id === "./pdf-print"
-          ? recoverPrint === "closed"
+          ? recoverPrint === "logo"
+            ? { ...load("lib/commercial/pdf-print.ts"), printTemplatePdf: async (page, reference) => {
+                const result = await page.evaluate(() => {
+                  const logo = Array.from(document.images).find(img => img.naturalWidth === 276 && img.naturalHeight === 276);
+                  if (!logo) throw Error("Logo not found");
+                  const signatures = Array.from(document.images).filter(img => img !== logo).map(img => img.getAttribute("style"));
+                  const parent = logo.parentElement;
+                  const previous = parent.style.width;
+                  parent.style.width = "60px";
+                  const rect = logo.getBoundingClientRect();
+                  const result = { ratio: rect.width / rect.height, signatures, height: logo.style.height };
+                  parent.style.width = previous;
+                  return result;
+                });
+                assert.ok(Math.abs(result.ratio - 1) < 0.01);
+                assert.equal(result.height, "auto");
+                for (const style of result.signatures) assert.match(style, /height: 61.03pt/);
+                fs.mkdirSync('../round2-qa',{recursive:true});
+                await page.screenshot({path:`../round2-qa/${reference}.png`,fullPage:true});
+                return load("lib/commercial/pdf-print.ts").printTemplatePdf(page, reference);
+              } }
+          : recoverPrint === "closed"
             ? {
                 ...load("lib/commercial/pdf-print.ts"),
                 printTemplatePdf: async (page, reference) => {
@@ -417,5 +438,14 @@ test("client demand and admin scope stay distinct; fourth and fifth phases keep 
     fs.mkdirSync('../budget-fields-qa',{recursive:true});
     fs.writeFileSync(`../budget-fields-qa/${kind}.pdf`,result.pdf);
     fs.writeFileSync(`../budget-fields-qa/${kind}.docx`,result.word);
+  }
+});
+
+test("only the logo retains its proportion under a constrained print container", async () => {
+  const render = load("lib/commercial/render.ts", "logo").renderCommercial;
+  for (const kind of ["orcamento", "contrato", "recibo"]) {
+    const result = await render({...sample,kind});
+    assert.ok((await PDFDocument.load(result.pdf)).getPageCount()>0);
+    fs.writeFileSync(`../round2-qa/${kind}.pdf`,result.pdf);
   }
 });
