@@ -20,6 +20,30 @@ export async function fillHasTemplate(
 ) {
   const source = await readFile(join(root(), `modelo_${kind}_HAS.docx`));
   const zip = new PizZip(source);
+  // Extend only the native phase structure. Rendering/Chromium is unchanged.
+  const phaseCount = Math.max(3, ...Object.keys(values).filter(key => /^FASE_\d+$/.test(key)).map(key => Number(key.slice(5))));
+  if (kind !== "recibo" && phaseCount > 3) {
+    const part = zip.file("word/document.xml");
+    if (!part) throw Error("Modelo inválido.");
+    let xml = part.asText();
+    const blocks = [...xml.matchAll(kind === "contrato" ? /<w:tr\b[\s\S]*?<\/w:tr>/g : /<w:p\b[\s\S]*?<\/w:p>/g)];
+    const index = blocks.findIndex(block => block[0].includes("{{FASE_3}}"));
+    if (index < 0 || (kind === "orcamento" && index === 0)) throw Error("Estrutura de fases não encontrada no modelo.");
+    const anchor = blocks[index][0];
+    const extraPhases = Array.from({ length: phaseCount - 3 }, (_, offset) => {
+      const phase = offset + 4;
+      const content = anchor.replaceAll("{{FASE_3}}", `{{FASE_${phase}}}`).replaceAll("Fase 3", `Fase ${phase}`);
+      if (kind === "contrato") return content;
+      let first = true;
+      const heading = blocks[index - 1][0].replace(/<w:t(?:\s[^>]*)?>[\s\S]*?<\/w:t>/g, () => {
+        const text = first ? `Fase ${phase}` : ""; first = false;
+        return `<w:t>${text}</w:t>`;
+      });
+      return heading + content;
+    }).join("").replace(/ w14:(?:paraId|textId)="[^"]*"/g, "");
+    xml = xml.replace(anchor, anchor + extraPhases);
+    zip.file("word/document.xml", xml);
+  }
   const doc = new Docxtemplater(zip, {
     delimiters: { start: "{{", end: "}}" },
     paragraphLoop: true,

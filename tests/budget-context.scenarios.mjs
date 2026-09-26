@@ -60,6 +60,19 @@ export async function runBudgetContext({ db, as, denied, admin, a, b }) {
     ).rows[0].request_details.purpose,
     "Tese",
   );
+  // Full draft round trip through the production RPC; no three-item assumption.
+  const phases = [100,200,300,150].map((value,index)=>({description:index===3 ? "Orientação nas correções do trabalho" : `Fase ${index+1}`,quantity:1,unitPrice:value}));
+  const four = {...changed,description:"Serviços propostos exclusivamente pelo administrador",items:phases,discountPercent:10};
+  await db.query(command(four));
+  const reopened=(await db.query(`select description,subtotal,total,status from client_budgets where id='${id}'`)).rows[0];
+  assert.equal(reopened.description,four.description);
+  assert.equal(Number(reopened.subtotal),750); assert.equal(Number(reopened.total),675);
+  assert.equal(reopened.status,'rascunho');
+  const saved=(await db.query(`select description,quantity,unit_price,display_order from client_budget_items where budget_id='${id}' order by display_order`)).rows;
+  assert.equal(saved.length,4); assert.equal(saved[3].description,phases[3].description);
+  await db.exec(`update client_budgets set status='aprovado' where id='${id}'`);
+  assert.equal(Number((await db.query(`select count(*) n from client_budget_items where budget_id='${id}'`)).rows[0].n),4);
+  console.log('PASS four-phase draft save/reopen/total/approval preserves every item and admin scope');
   await db.exec(`update client_budgets set archived_at=now() where id='${id}'`);
   await denied(command(changed));
   await as(b);

@@ -331,7 +331,7 @@ test("stage and additional-service unit prices never appear in native proposal o
     values.DESCRICAO_SERVICOS,
     data.items.map((i) => i.description).join("\n"),
   );
-  assert.match(values.OBSERVACOES, /Validação complementar/);
+  assert.ok(Object.values(values).some(value => value.includes("Validação complementar")));
   assert.doesNotMatch(values.OBSERVACOES, /123,45|7 ×/);
   assert.match(values.VALOR_FINAL, /729,00/);
   const { fillHasTemplate } = load("lib/commercial/template-engine.ts");
@@ -379,5 +379,43 @@ test("six consecutive native proposals release browser profiles after every gene
       if (process.platform !== "win32" || error.code !== "EPERM" || !String(error.path).startsWith(join(own,"Intel"))) throw error;
       console.info("Windows driver cache retained; all six browser profile cleanup checks passed.");
     });
+  }
+});
+
+
+test("client demand and admin scope stay distinct; fourth and fifth phases keep native rows", async () => {
+  const { originalRequestDescription } = load("lib/commercial/intake.ts");
+  const { templateValues } = load("lib/commercial/render.ts");
+  const demand = "Preciso avaliar a associação entre os tratamentos e a resposta clínica.";
+  const scope = "Ajustar modelos mistos e verificar pressupostos com relatório reproduzível.";
+  const input = { ...sample, budget: { ...sample.budget, description: scope },
+    template: { requestText: originalRequestDescription(demand + "\n\n[Solicita orçamento e acesso à área do cliente. Autoriza contato sobre esta demanda.]") },
+    items: [
+      {description:"Organização",quantity:1,unit_price:100},
+      {description:"Análise",quantity:1,unit_price:200},
+      {description:"Relatório",quantity:1,unit_price:300},
+      {description:"Orientação nas correções do trabalho\nAcompanhamento das análises",quantity:1,unit_price:150},
+      {description:"Revisão complementar",quantity:1,unit_price:50},
+    ] };
+  const values=templateValues(input);
+  assert.equal(values.SOLICITACAO_CLIENTE,demand);
+  assert.equal(values.DESCRICAO_ANALISE_HAS,scope);
+  assert.equal(templateValues({...input,template:{}}).SOLICITACAO_CLIENTE,"");
+  for(const kind of ["orcamento","contrato"]) {
+    const result=await renderCommercial({...input,kind});
+    const zip=await JSZip.loadAsync(result.word);
+    const xml=await zip.file('word/document.xml').async('string');
+    const text=xml.replace(/<[^>]+>/g,'');
+    assert.match(text,/Fase 4/); assert.match(text,/Fase 5/);
+    assert.match(text,/Orientação nas correções/); assert.match(text,/Revisão complementar/);
+    assert.doesNotMatch(text,/Solicita orçamento e acesso/);
+    if(kind==='contrato') {
+      const rows=xml.match(/<w:tr\b[\s\S]*?<\/w:tr>/g);
+      assert.ok(rows.some(row=>row.includes('Fase 4') && row.includes('Orientação nas correções')));
+    }
+    assert.ok((await PDFDocument.load(result.pdf)).getPageCount()>0);
+    fs.mkdirSync('../budget-fields-qa',{recursive:true});
+    fs.writeFileSync(`../budget-fields-qa/${kind}.pdf`,result.pdf);
+    fs.writeFileSync(`../budget-fields-qa/${kind}.docx`,result.word);
   }
 });

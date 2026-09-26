@@ -54,8 +54,9 @@ export function templateValues(s: DocumentSnapshot): Record<string, string> {
     NOME_CLIENTE: s.client.legal_name,
     DEPARTAMENTO: t.department ?? s.client.institution ?? "",
     DATA: s.created,
-    SOLICITACAO_CLIENTE: t.requestText ?? s.budget.description,
+    SOLICITACAO_CLIENTE: t.requestText ?? "",
     DESCRICAO_ANALISE_HAS: s.budget.description,
+    ...Object.fromEntries(s.items.map((item, index) => [`FASE_${index + 1}`, item.description])),
     FASE_1: s.items[0]?.description ?? "Não incluída neste escopo",
     FASE_2: s.items[1]?.description ?? "Não incluída neste escopo",
     FASE_3: s.items[2]?.description ?? "Não incluída neste escopo",
@@ -63,9 +64,6 @@ export function templateValues(s: DocumentSnapshot): Record<string, string> {
       s.budget.notes,
       s.body,
       `Proposta ${s.budget.number} · versão ${s.reference}. Validade: ${date(s.budget.validity) || "A combinar"}.`,
-      ...s.items
-        .slice(3)
-        .map((i, n) => `Serviço adicional ${n + 1}: ${i.description}`),
     ]
       .filter(Boolean)
       .join("\n"),
@@ -79,7 +77,7 @@ export function templateValues(s: DocumentSnapshot): Record<string, string> {
     CPF_CNPJ_CLIENTE: s.client.tax_id,
     EMAIL_CLIENTE: s.client.email,
     WHATSAPP_CLIENTE: s.client.phone,
-    DESCRICAO_DEMANDA: t.requestText ?? s.budget.description,
+    DESCRICAO_DEMANDA: t.requestText ?? "",
     DESCRICAO_SERVICOS: s.items.map((i) => i.description).join("\n"),
     VALOR_CONTRATADO: money(s.budget.total),
     DATA_INICIO:

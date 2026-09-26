@@ -67,3 +67,9 @@ export function intakeDescription(
     .filter(Boolean)
     .join("\n");
 }
+
+// Older public submissions append this exact system-generated consent marker.
+// Keep the stored request untouched; remove only that suffix for document display.
+export function originalRequestDescription(description: string | null | undefined) {
+  return (description ?? "").split("\n\n[Solicita orçamento e acesso à área do cliente. Autoriza contato sobre esta demanda.]")[0];
+}

@@ -5,7 +5,7 @@ import {
   budgetRequestDefaults,
   requestEstimateFactors,
 } from "@/lib/commercial/budget-defaults";
-import { proposalIntakeFields, intakeOptions } from "@/lib/commercial/intake";
+import { proposalIntakeFields, intakeOptions, originalRequestDescription } from "@/lib/commercial/intake";
 import BudgetPlanningFields from "./BudgetPlanningFields";
 import CommercialDocuments from "@/components/workspace/CommercialDocuments";
 import { useCallback, useEffect, useState, useRef } from "react";
@@ -96,6 +96,7 @@ export default function ClientBudgetManager({
     [model, setModel] = useState<CommercialModel>(defaultModel),
     [modelReady, setModelReady] = useState(false),
     [items, setItems] = useState<Item[]>([]),
+    [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({}),
     [edit, setEdit] = useState<Budget | null>(null),
     [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
@@ -222,7 +223,7 @@ export default function ClientBudgetManager({
     const linked = projects.find((p) => p.id === (scopeProjectId ?? r?.project_id));
     const defaults = budgetRequestDefaults(r, linked, model.title);
     setTitle(defaults.title);
-    setDescription(defaults.description);
+    setDescription("");
     setRequestDetails(defaults.details);
     const mapped = requestEstimateFactors(defaults.details, model);
     commitPricing({ hours: 8, rate: model.hourlyRate, base: model.baseValue, additions: model.baseValue * coefficientTotal(model, mapped), factors: mapped });
@@ -238,6 +239,7 @@ export default function ClientBudgetManager({
         .slice(0, 10),
     );
     setEdit(null);
+    setExpandedItems({});
     setItems(pricingItems(model, model.services.filter(s => s.initial), pricingRef.current));
     setDiscount(model.discount);
     setOpen(true);
@@ -247,6 +249,7 @@ export default function ClientBudgetManager({
     try {
       const savedItems = await itemRows(b.id);
       setItems(savedItems);
+      setExpandedItems({});
       setEdit(b);
       setClientDetails(
         b.client_details ?? budgetClientDefaults(billing, profile, null),
@@ -505,7 +508,7 @@ export default function ClientBudgetManager({
                     const p = projects.find((p) => p.id === nextId);
                     if (!edit && p) {
                       if (!title || title === model.title) setTitle(p.title);
-                      if (!description) setDescription(p.description ?? "");
+                      // The administrator writes the proposed services; do not copy client demand here.
                     }
                   }}
                 >
@@ -539,10 +542,16 @@ export default function ClientBudgetManager({
               </label>
             </div>
             <label>
-              Descrição da demanda
+              Demanda apresentada pelo cliente
+              <textarea aria-label="Demanda apresentada pelo cliente" readOnly
+                value={originalRequestDescription(source?.description)}
+                placeholder="Nenhuma solicitação vinculada a este orçamento." />
+            </label>
+            <label>
+              Serviços e análises propostas
               <textarea
                 name="description"
-                aria-label="Descrição da demanda"
+                aria-label="Serviços e análises propostas"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -654,7 +663,7 @@ export default function ClientBudgetManager({
               documentos apresentam os serviços e o valor global da proposta.
             </p>
             {items.map((item, i) => (
-              <details className="budget-item" key={i} open={!item.description}>
+              <details className="budget-item" key={i} open={expandedItems[i] ?? false} onToggle={(e) => { const isOpen = e.currentTarget.open; setExpandedItems(previous => previous[i] === isOpen ? previous : { ...previous, [i]: isOpen }); }}>
                 <summary>
                   Etapa {i + 1} · {item.description.slice(0, 90) || "Novo item"}
                 </summary>
@@ -741,12 +750,10 @@ export default function ClientBudgetManager({
               <button
                 type="button"
                 className="btn"
-                onClick={() =>
-                  setItems([
-                    ...items,
-                    { description: "", quantity: 1, unitPrice: 0 },
-                  ])
-                }
+                onClick={() => {
+                  setExpandedItems(previous => ({ ...previous, [items.length]: true }));
+                  setItems(previous => [...previous, { description: "", quantity: 1, unitPrice: 0 }]);
+                }}
               >
                 Item livre
               </button>

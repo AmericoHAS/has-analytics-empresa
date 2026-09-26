@@ -3,7 +3,7 @@ import {
   paymentDescription,
   type PaymentOption,
 } from "@/lib/commercial/payments";
-import { intakeDescription } from "@/lib/commercial/intake";
+import { originalRequestDescription } from "@/lib/commercial/intake";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -150,8 +150,12 @@ export async function generateCommercialDocument(form: FormData) {
           .from("budget_requests")
           .select("description,intake")
           .eq("id", planning.request_id)
+          .eq("client_id", b.client_id)
           .maybeSingle()
-      : { data: null };
+      : b.project_id ? await db.from("budget_requests").select("description,intake")
+          .eq("client_id", b.client_id).eq("project_id", b.project_id)
+          .order("created_at", { ascending: false }).limit(1).maybeSingle()
+        : { data: null };
     if (input.kind === "contrato" && !chosen?.option)
       throw Error("O cliente precisa escolher e aprovar a forma de pagamento.");
     const { data: contract } = await db
@@ -222,10 +226,7 @@ export async function generateCommercialDocument(form: FormData) {
           installments: String(chosen?.option?.installments ?? 1),
           projectTitle: b.title,
           department: planning?.department || documentClient.institution || "",
-          requestText: intakeDescription(
-            b.request_details ?? request?.intake ?? {},
-            b.description || request?.description || "",
-          ),
+          requestText: originalRequestDescription(request?.description),
           revisions: input.revisions,
           forumCity: input.forumCity,
           signatureCity: documentClient.city,
