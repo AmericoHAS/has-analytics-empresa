@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { billingFields } from "@/lib/commercial/billing";
 import { resendClientAccess } from "@/app/admin/actions";
 import { saveBilling } from "@/app/admin/billing-actions";
+import ClientAccessEmail from "@/components/admin/ClientAccessEmail";
 export default function ClientProfile({
   clientId,
   admin = false,
@@ -171,6 +172,7 @@ export default function ClientProfile({
           Reenviar e-mail de acesso à conta
         </button>
       )}
+      {admin && <ClientAccessEmail key={clientId} clientId={clientId} />}
       <p role="status">{message}</p>
     </section>
   );
