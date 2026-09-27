@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny-ps" width="512" height="512" viewBox="0 0 512 512">
+  <title>HAS Analytics</title>
+  <desc>Emblema circular azul-marinho com H branco e gráfico estatístico em ciano.</desc>
+  <rect width="512" height="512" fill="#061B3D"/>
+  <circle cx="256" cy="256" r="232" fill="#061B3D" stroke="#00D9F0" stroke-width="8"/>
+  <path fill="#FFFFFF" d="M116 357C128 357 137 322 139 282L145 204C148 151 165 111 196 103C221 96 239 107 239 123C239 138 225 145 215 137C208 132 209 119 199 121C181 126 179 171 176 211L173 241L290 235L293 204C297 151 313 111 345 103C370 96 388 107 388 123C388 138 374 145 364 137C357 132 358 119 348 121C329 126 327 171 324 211L318 292C313 345 295 377 263 384C239 390 224 380 224 365C224 352 238 344 248 351C257 357 253 369 264 368C277 365 283 333 286 289L289 251L172 257L169 292C165 345 147 377 115 384C91 390 76 380 76 365C76 352 90 344 100 351C109 357 105 369 116 357Z"/>
+  <path fill="#00D9F0" d="M332 385H344V407H332ZM351 368H363V407H351ZM370 351H382V407H370ZM389 368H401V407H389ZM408 385H420V407H408Z"/>
+  <path d="M319 388C343 385 353 341 376 340C399 341 409 385 433 388" fill="none" stroke="#00D9F0" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="319" cy="388" r="5" fill="#00D9F0"/>
+  <circle cx="376" cy="340" r="5" fill="#00D9F0"/>
+  <circle cx="433" cy="388" r="5" fill="#00D9F0"/>
+</svg>
