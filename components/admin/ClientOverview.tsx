@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import ClientWorkspace from "@/components/workspace/ClientWorkspace";
-import ClientAccessEmail from "@/components/admin/ClientAccessEmail";
 export default function ClientOverview({
   initialTab = "projetos",
   initialClientId = "",
@@ -46,7 +45,6 @@ export default function ClientOverview({
       </button>
       {selected ? (
         <div className="stack">
-        <ClientAccessEmail key={`email-${selected}`} clientId={selected} />
         <ClientWorkspace
           key={selected}
           clientId={selected}
